@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Settings — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-inner {
+      max-width: 640px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--orange); }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
+    .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
+
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.7rem;
+      margin-bottom: 1.4rem;
+    }
+    .form-card h2 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+    .form-card .sub { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.4rem; }
+
+    .form-group { margin-bottom: 1.3rem; }
+    label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem; }
+    label .optional { font-weight: 400; color: var(--text-muted); }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.98rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--orange); }
+
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    .password-field { position: relative; }
+    .password-field input { padding-right: 4rem; }
+    .toggle-pw {
+      position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+      background: transparent; border: none; color: var(--text-muted);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0.35rem 0.5rem;
+      font-family: inherit;
+    }
+    .toggle-pw:hover { color: var(--orange); }
+
+    .actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.8rem 1.4rem; border-radius: 10px; font-weight: 600;
+      font-size: 0.95rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-secondary { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    .status {
+      margin-top: 1.1rem; padding: 0.85rem 1rem; border-radius: 10px;
+      font-size: 0.9rem; display: none;
+    }
+    .status.success {
+      display: block; background: rgba(0,180,100,0.12);
+      border: 1px solid rgba(0,180,100,0.35); color: #5ddea0;
+    }
+    .status.error {
+      display: block; background: rgba(220,60,60,0.12);
+      border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
+    }
+    .status.warn {
+      display: block; background: rgba(255,180,0,0.1);
+      border: 1px solid rgba(255,180,0,0.35); color: #ffcf5c;
+    }
+
+    @media (max-width: 560px) {
+      .actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="admin.html">Dashboard</a>
+        <a href="products.html">Shop</a>
+        <a href="blog.html">Blog</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1 class="page-title">Account Settings</h1>
+    <p class="page-sub">Update your sign-in username and/or password.</p>
+
+    <div class="form-card">
+      <form id="accountForm" novalidate>
+        <div class="form-group">
+          <label for="currentPassword">Current Password</label>
+          <div class="password-field">
+            <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required>
+            <button type="button" class="toggle-pw" data-target="currentPassword" aria-label="Show password">Show</button>
+          </div>
+          <div class="hint">Required to confirm any change below.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="newUsername">Username</label>
+          <input type="text" id="newUsername" name="newUsername" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="newDisplayName">Display Name <span class="optional">(optional)</span></label>
+          <input type="text" id="newDisplayName" name="newDisplayName">
+        </div>
+
+        <div class="form-group">
+          <label for="newPassword">New Password <span class="optional">(leave blank to keep current password)</span></label>
+          <div class="password-field">
+            <input type="password" id="newPassword" name="newPassword" autocomplete="new-password">
+            <button type="button" class="toggle-pw" data-target="newPassword" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm New Password</label>
+          <div class="password-field">
+            <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password">
+            <button type="button" class="toggle-pw" data-target="confirmPassword" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Save Changes</button>
+          <a href="admin.html" class="btn btn-secondary">Cancel</a>
+        </div>
+
+        <div id="statusMsg" class="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    if (sessionStorage.getItem('rabithole_auth') !== '1') {
+      window.location.href = 'login.html';
+    }
+
+    const statusEl = document.getElementById('statusMsg');
+    const submitBtn = document.getElementById('submitBtn');
+
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      });
+    });
+
+    (async function loadCurrentUser() {
+      if (!window.RabitholeDB) {
+        statusEl.className = 'status warn';
+        statusEl.textContent = 'Account settings require the database server to be running (python server.py).';
+        submitBtn.disabled = true;
+        return;
+      }
+      const me = await RabitholeDB.getMe();
+      if (me) {
+        document.getElementById('newUsername').value = me.username;
+        document.getElementById('newDisplayName').value = me.displayName || '';
+      }
+    })();
+
+    document.getElementById('accountForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newUsername = document.getElementById('newUsername').value.trim();
+      const newDisplayName = document.getElementById('newDisplayName').value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (!currentPassword) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Enter your current password to confirm changes.';
+        return;
+      }
+      if (newPassword && newPassword !== confirmPassword) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'New password and confirmation do not match.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving…';
+
+      try {
+        const result = await RabitholeDB.updateAccount({
+          currentPassword,
+          newUsername,
+          newDisplayName,
+          newPassword: newPassword || undefined,
+        });
+        sessionStorage.setItem('rabithole_user', result.user.username);
+        if (result.user.displayName) sessionStorage.setItem('rabithole_display', result.user.displayName);
+
+        statusEl.className = 'status success';
+        statusEl.textContent = 'Account updated.';
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = err.message || 'Update failed.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+      }
+    });
+  </script>
+</body>
+</html>

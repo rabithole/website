@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop — Rabithole 3D-Printed RC Parts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --bg-elevated: #181b22;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+      --shadow: 0 16px 32px rgba(0,0,0,0.4);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,10,0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+    .nav-cta {
+      background: var(--orange); color: #fff !important; padding: 0.42rem 0.95rem;
+      border-radius: 8px; font-weight: 600;
+    }
+    .nav-cta:hover { background: var(--orange-dim); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    #listView { display: block; }
+    #detailView { display: none; }
+
+    .page-header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .page-header h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 1.75rem;
+    }
+    .page-header p { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.95rem; }
+
+    .filters {
+      display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.8rem;
+    }
+    .filter-btn {
+      font-size: 0.82rem; font-weight: 600; padding: 0.4rem 0.9rem;
+      border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted); cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: rgba(255,107,0,0.15); border-color: rgba(255,107,0,0.4); color: var(--orange);
+    }
+
+    .product-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem;
+    }
+
+    .product-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      transition: transform 0.25s, border-color 0.25s; cursor: pointer;
+    }
+    .product-card:hover { transform: translateY(-4px); border-color: var(--orange); }
+
+    .product-img {
+      height: 190px; overflow: hidden; background: #0c0d10; position: relative;
+    }
+    .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+    .product-card:hover .product-img img { transform: scale(1.05); }
+
+    .status-badge {
+      position: absolute; top: 10px; left: 10px;
+      font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.6rem;
+      border-radius: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .status-badge.Available { background: rgba(0,180,100,0.85); color: #fff; }
+    .status-badge.Made\ to\ Order { background: rgba(0,150,220,0.85); color: #fff; }
+    .status-badge.Sold\ Out { background: rgba(120,120,120,0.85); color: #fff; }
+
+    .product-body { padding: 1.25rem; }
+    .product-cat {
+      font-size: 0.75rem; color: var(--cyan); font-weight: 600; margin-bottom: 0.3rem;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .product-body h3 { font-size: 1.08rem; margin-bottom: 0.4rem; line-height: 1.3; }
+    .product-body p {
+      color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .product-meta {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .price {
+      font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--orange); font-size: 1.15rem;
+    }
+
+    .empty-state {
+      text-align: center; padding: 3.5rem 1.5rem; grid-column: 1 / -1;
+      background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state p { color: var(--text-muted); margin-bottom: 1.1rem; }
+
+    /* Detail view */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem;
+    }
+    .back-btn:hover { color: var(--orange); }
+
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;
+    }
+    .detail-img {
+      border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border);
+      background: #0c0d10;
+    }
+    .detail-img img { width: 100%; height: auto; display: block; }
+
+    .detail-info h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 1.6rem; margin-bottom: 0.5rem; line-height: 1.25;
+    }
+    .detail-price {
+      font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: var(--orange);
+      font-weight: 700; margin-bottom: 0.8rem;
+    }
+    .detail-meta {
+      display: flex; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 1.2rem;
+    }
+    .detail-tag {
+      font-size: 0.78rem; font-weight: 600; padding: 0.3rem 0.7rem;
+      border-radius: 6px; background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.25); color: var(--cyan);
+    }
+    .detail-status {
+      font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.7rem; border-radius: 6px;
+    }
+    .detail-status.Available { background: rgba(0,180,100,0.15); color: #5ddea0; border: 1px solid rgba(0,180,100,0.35); }
+    .detail-status.Made\ to\ Order { background: rgba(0,150,220,0.15); color: #6ec8f0; border: 1px solid rgba(0,150,220,0.35); }
+    .detail-status.Sold\ Out { background: rgba(120,120,120,0.15); color: #aaa; border: 1px solid rgba(120,120,120,0.35); }
+
+    .detail-desc {
+      color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin-bottom: 1.6rem;
+      white-space: pre-wrap;
+    }
+
+    .actions-bar { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.75rem 1.3rem; border-radius: 9px; font-weight: 600;
+      font-size: 0.92rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-danger {
+      background: transparent; color: #ff8a8a; border: 1px solid rgba(255,100,100,0.35);
+      font-size: 0.85rem; padding: 0.55rem 0.95rem;
+    }
+    .btn-danger:hover { background: rgba(220,60,60,0.12); }
+
+    .checkout-box { margin-top: 1.4rem; max-width: 320px; }
+    #paypal-button-container { min-height: 45px; }
+    .checkout-msg {
+      margin-top: 0.9rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.88rem;
+    }
+    .checkout-msg.success {
+      background: rgba(0,180,100,0.12); border: 1px solid rgba(0,180,100,0.35); color: #5ddea0;
+    }
+    .checkout-msg.error {
+      background: rgba(220,60,60,0.12); border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
+    }
+    .checkout-msg.info {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted);
+    }
+
+    @media (max-width: 900px) {
+      .product-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .product-grid { grid-template-columns: 1fr; }
+      .page-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="products.html" class="active">Shop</a>
+        <a href="blog.html">Blog</a>
+        <a href="login.html" class="nav-cta" id="navAdminLink">Owner</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- LIST VIEW -->
+    <div id="listView">
+      <div class="page-header">
+        <div>
+          <h1>Shop</h1>
+          <p>3D-printed RC parts designed and sold by a mechanical engineering student.</p>
+        </div>
+      </div>
+
+      <div class="filters" id="filters">
+        <button class="filter-btn active" data-cat="all">All</button>
+        <button class="filter-btn" data-cat="Suspension">Suspension</button>
+        <button class="filter-btn" data-cat="Drivetrain">Drivetrain</button>
+        <button class="filter-btn" data-cat="Aero">Aero</button>
+        <button class="filter-btn" data-cat="Chassis">Chassis</button>
+        <button class="filter-btn" data-cat="Electronics">Electronics</button>
+        <button class="filter-btn" data-cat="Custom">Custom</button>
+      </div>
+
+      <div id="productGrid" class="product-grid"></div>
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div id="detailView">
+      <button class="back-btn" id="backBtn">← Back to shop</button>
+      <div class="detail-grid" id="detailContent"></div>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    // STORAGE_KEY kept for legacy fallback only
+    const STORAGE_KEY = 'rabithole_products';
+    let currentFilter = 'all';
+
+    // ---- Database-backed data layer (falls back to localStorage) ----
+    async function loadProducts() {
+      if (window.RabitholeDB) return RabitholeDB.getProducts();
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    async function removeProduct(id) {
+      if (window.RabitholeDB) return RabitholeDB.deleteProduct(id);
+      const list = (await loadProducts()).filter(p => p.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+
+    function ensureSeedProducts() {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      const seeds = [
+        {
+          id: 'prod-1',
+          name: 'CF-Nylon Suspension Arms',
+          price: 34,
+          category: 'Suspension',
+          status: 'Available',
+          description: 'Topology-optimized A-arms printed in carbon-fiber reinforced nylon. Bolt-on for popular 1/10 platforms. Stronger and lighter than stock plastic.',
+          image: 'assets/suspension.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 20,
+          updatedAt: null
+        },
+        {
+          id: 'prod-2',
+          name: 'Hybrid Drivetrain Kit',
+          price: 48,
+          category: 'Drivetrain',
+          status: 'Available',
+          description: 'Aluminum + printed differential housings and motor mounts. Designed for strength and easy maintenance. Fits most 1/10 touring and buggy chassis.',
+          image: 'assets/parts.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 15,
+          updatedAt: null
+        },
+        {
+          id: 'prod-3',
+          name: 'Custom Aero Wing Set',
+          price: 29,
+          category: 'Aero',
+          status: 'Made to Order',
+          description: 'Low-drag rear wing and side dams. Printed and finished for immediate track use or further painting. Multiple mounting options.',
+          image: 'assets/hero.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8,
+          updatedAt: null
+        }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeds));
+    }
+
+    function getProducts() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    function saveProducts(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    function formatPrice(n) {
+      return '$' + Number(n).toFixed(n % 1 === 0 ? 0 : 2);
+    }
+
+    async function renderList() {
+      let products = (await loadProducts()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (currentFilter !== 'all') {
+        products = products.filter(p => p.category === currentFilter);
+      }
+
+      const grid = document.getElementById('productGrid');
+
+      if (products.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <p>${currentFilter === 'all' ? 'No products listed yet.' : 'No products in this category.'}</p>
+          </div>`;
+        return;
+      }
+
+      grid.innerHTML = products.map(p => `
+        <div class="product-card" data-id="${p.id}">
+          <div class="product-img">
+            <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+            <span class="status-badge ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+          </div>
+          <div class="product-body">
+            <div class="product-cat">${escapeHtml(p.category)}</div>
+            <h3>${escapeHtml(p.name)}</h3>
+            <p>${escapeHtml(p.description)}</p>
+            <div class="product-meta">
+              <span class="price">${formatPrice(p.price)}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.product-card').forEach(el => {
+        el.addEventListener('click', () => showDetail(el.dataset.id));
+      });
+    }
+
+    async function showDetail(id) {
+      const all = await loadProducts();
+      const p = all.find(x => x.id === id);
+      if (!p) return;
+
+      document.getElementById('listView').style.display = 'none';
+      document.getElementById('detailView').style.display = 'block';
+
+      document.getElementById('detailContent').innerHTML = `
+        <div class="detail-img">
+          <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+        </div>
+        <div class="detail-info">
+          <h1>${escapeHtml(p.name)}</h1>
+          <div class="detail-price">${formatPrice(p.price)}</div>
+          <div class="detail-meta">
+            <span class="detail-tag">${escapeHtml(p.category)}</span>
+            <span class="detail-status ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+          </div>
+          <div class="detail-desc">${escapeHtml(p.description)}</div>
+          <div class="actions-bar">
+            <a href="mailto:hello@rabithole.com?subject=Inquiry:%20${encodeURIComponent(p.name)}" class="btn btn-secondary" id="inquireBtn">Questions? Email us</a>
+            <a href="add-product.html?id=${p.id}" class="btn btn-secondary" id="editBtn">Edit</a>
+            <button class="btn btn-danger" id="deleteBtn" onclick="deleteProduct('${p.id}')">Delete</button>
+          </div>
+          <div class="checkout-box" id="checkoutBox">
+            <div id="paypal-button-container"></div>
+            <div id="checkoutMsg"></div>
+          </div>
+        </div>
+      `;
+
+      history.replaceState(null, '', '#product=' + id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderCheckout(p);
+    }
+
+    // ---- PayPal checkout ----
+    let paypalSdkPromise = null;
+
+    function loadPaypalSdk(clientId, currency) {
+      if (paypalSdkPromise) return paypalSdkPromise;
+      paypalSdkPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
+        script.onload = () => resolve(window.paypal);
+        script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+        document.head.appendChild(script);
+      });
+      return paypalSdkPromise;
+    }
+
+    function showCheckoutMsg(type, text) {
+      const el = document.getElementById('checkoutMsg');
+      if (!el) return;
+      el.className = 'checkout-msg ' + type;
+      el.textContent = text;
+    }
+
+    async function renderCheckout(product) {
+      const container = document.getElementById('paypal-button-container');
+      if (!container) return;
+
+      if (product.status === 'Sold Out') {
+        showCheckoutMsg('info', 'This item is currently sold out.');
+        return;
+      }
+      if (!window.RabitholeDB) {
+        showCheckoutMsg('info', 'Online checkout requires the database server to be running.');
+        return;
+      }
+
+      const config = await RabitholeDB.getPaypalConfig();
+      if (!config.configured || !config.clientId) {
+        showCheckoutMsg('info', 'Online payment isn’t set up yet — email to inquire about this part.');
+        return;
+      }
+
+      try {
+        const paypal = await loadPaypalSdk(config.clientId, config.currency);
+        paypal.Buttons({
+          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+          createOrder: async () => {
+            showCheckoutMsg('info', '');
+            const order = await RabitholeDB.createPaypalOrder(product.id);
+            return order.id;
+          },
+          onApprove: async (data) => {
+            showCheckoutMsg('info', 'Finishing up your payment…');
+            try {
+              const result = await RabitholeDB.capturePaypalOrder(data.orderID);
+              if (result.status === 'COMPLETED') {
+                container.style.display = 'none';
+                showCheckoutMsg('success', `Payment successful! Order ${result.orderId}. A receipt was sent by PayPal to your email.`);
+              } else {
+                showCheckoutMsg('error', `Payment status: ${result.status}. Contact hello@rabithole.com if this seems wrong.`);
+              }
+            } catch (err) {
+              showCheckoutMsg('error', err.message || 'Payment could not be completed.');
+            }
+          },
+          onError: (err) => {
+            showCheckoutMsg('error', 'PayPal checkout error. Please try again or email hello@rabithole.com.');
+            console.error('PayPal error:', err);
+          },
+          onCancel: () => {
+            showCheckoutMsg('info', 'Checkout cancelled.');
+          },
+        }).render('#paypal-button-container');
+      } catch (err) {
+        showCheckoutMsg('error', 'Could not load PayPal checkout.');
+        console.error(err);
+      }
+    }
+
+    function showList() {
+      document.getElementById('listView').style.display = 'block';
+      document.getElementById('detailView').style.display = 'none';
+      history.replaceState(null, '', window.location.pathname);
+      renderList();
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('Delete this product permanently?')) return;
+      await removeProduct(id);
+      showList();
+    }
+
+    // Filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.cat;
+        renderList();
+      });
+    });
+
+    document.getElementById('backBtn').addEventListener('click', showList);
+
+    // Init
+    if (typeof ensureSeedProducts === 'function') ensureSeedProducts();
+    (async function init() {
+      if (window.RabitholeDB) {
+        console.log('Rabithole storage:', await RabitholeDB.storageMode());
+      }
+      await renderList();
+      if (window.location.hash.startsWith('#product=')) {
+        await showDetail(window.location.hash.slice(9));
+      }
+    })();
+
+    // Auth-aware UI
+    const isOwner = sessionStorage.getItem('rabithole_auth') === '1';
+    if (isOwner) {
+      const navLink = document.getElementById('navAdminLink');
+      if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
+    }
+
+    // Patch showDetail to only show edit/delete for owner
+    const _origShowDetail = showDetail;
+    showDetail = async function(id) {
+      await _origShowDetail(id);
+      if (!isOwner) {
+        const editBtn = document.getElementById('editBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        if (editBtn) editBtn.remove();
+        if (deleteBtn) deleteBtn.remove();
+      }
+    };
+
+  </script>
+</body>
+</html>

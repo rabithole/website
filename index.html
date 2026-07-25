@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rabithole — 3D Printed RC Parts · Mechanical Engineering · Projects</title>
+  <meta name="description" content="Personal portfolio & shop of a WSU Mechanical Engineering student. High-performance 3D-printed RC car parts, engineering projects, and a deep dive into the craft.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --bg-elevated: #181b22;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+      --shadow: 0 20px 40px rgba(0,0,0,0.45);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(7, 8, 10, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1140px; margin: 0 auto; padding: 0.85rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 42px; width: auto; border-radius: 8px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.25rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.6rem; list-style: none; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.92rem;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-cta {
+      background: var(--orange); color: #fff !important; padding: 0.5rem 1.15rem;
+      border-radius: 8px; font-weight: 600;
+    }
+    .nav-cta:hover { background: var(--orange-dim); }
+    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; }
+
+    /* HERO */
+    .hero {
+      position: relative; min-height: 92vh; display: flex; align-items: center;
+      padding: 7rem 1.5rem 5rem; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: url('assets/hero.png') center/cover no-repeat; z-index: 0;
+    }
+    .hero-bg::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(110deg, rgba(7,8,10,0.94) 0%, rgba(7,8,10,0.78) 50%, rgba(7,8,10,0.5) 100%);
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 1140px; margin: 0 auto; width: 100%; }
+    .hero-grid {
+      display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 3rem; align-items: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      background: rgba(255,107,0,0.14); border: 1px solid rgba(255,107,0,0.35);
+      color: var(--orange); font-size: 0.82rem; font-weight: 600;
+      padding: 0.35rem 0.85rem; border-radius: 999px; margin-bottom: 1.3rem;
+    }
+    .hero h1 {
+      font-family: 'Orbitron', sans-serif; font-size: clamp(2.1rem, 4.8vw, 3.2rem);
+      font-weight: 700; line-height: 1.18; margin-bottom: 1.1rem;
+    }
+    .hero h1 .accent { color: var(--orange); }
+    .hero-sub {
+      font-size: 1.12rem; color: var(--text-muted); max-width: 520px; margin-bottom: 1.8rem;
+    }
+    .hero-buttons { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.85rem 1.6rem; border-radius: 10px; font-weight: 600; font-size: 0.98rem;
+      text-decoration: none; transition: all 0.25s; cursor: pointer; border: none;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover {
+      background: var(--orange-dim); transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(255,107,0,0.32);
+    }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+    .portrait-wrap {
+      justify-self: end; position: relative;
+    }
+    .portrait-wrap img {
+      width: 280px; height: 340px; object-fit: cover; border-radius: 16px;
+      border: 2px solid var(--border); box-shadow: var(--shadow);
+    }
+    .portrait-label {
+      position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.8rem;
+      white-space: nowrap; color: var(--text-muted);
+    }
+
+    /* QUICK STATS */
+    .quick-stats {
+      max-width: 1140px; margin: -2.5rem auto 0; padding: 0 1.5rem; position: relative; z-index: 2;
+    }
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: var(--shadow);
+    }
+    .stat { text-align: center; }
+    .stat-value { font-family: 'Orbitron', sans-serif; font-size: 1.55rem; font-weight: 700; color: var(--orange); }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* SECTIONS */
+    section { padding: 5rem 1.5rem; }
+    .section-inner { max-width: 1140px; margin: 0 auto; }
+    .section-header { margin-bottom: 2.8rem; }
+    .section-header.center { text-align: center; }
+    .section-header h2 {
+      font-family: 'Orbitron', sans-serif; font-size: clamp(1.65rem, 3.5vw, 2.2rem); margin-bottom: 0.6rem;
+    }
+    .section-header p { color: var(--text-muted); max-width: 560px; font-size: 1.05rem; }
+    .section-header.center p { margin: 0 auto; }
+
+    /* ABOUT / RESUME */
+    .about-grid {
+      display: grid; grid-template-columns: 1fr 1.1fr; gap: 2.5rem; align-items: start;
+    }
+    .about-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.8rem;
+    }
+    .about-card h3 { font-size: 1.15rem; margin-bottom: 0.9rem; color: var(--orange); }
+    .about-card p { color: var(--text-muted); margin-bottom: 0.9rem; font-size: 0.98rem; }
+    .skill-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+    .skill-tag {
+      background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.25);
+      color: var(--orange); font-size: 0.78rem; font-weight: 600;
+      padding: 0.3rem 0.7rem; border-radius: 6px;
+    }
+    .resume-list { list-style: none; }
+    .resume-list li {
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; gap: 1rem; font-size: 0.95rem;
+    }
+    .resume-list li:last-child { border-bottom: none; }
+    .resume-list .role { font-weight: 600; }
+    .resume-list .meta { color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; }
+
+    /* PRODUCTS (SALES EMPHASIS) */
+    .products { background: var(--bg-elevated); }
+    .product-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+    }
+    .product-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: transform 0.3s, border-color 0.3s;
+    }
+    .product-card:hover { transform: translateY(-5px); border-color: var(--orange); }
+    .product-img {
+      height: 200px; overflow: hidden; background: #0c0d10;
+    }
+    .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+    .product-card:hover .product-img img { transform: scale(1.05); }
+    .product-body { padding: 1.4rem; }
+    .product-body h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+    .product-body p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .product-meta {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .price { font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--orange); font-size: 1.15rem; }
+    .btn-sm {
+      padding: 0.45rem 0.95rem; font-size: 0.85rem; border-radius: 8px;
+    }
+
+    /* PROJECTS */
+    .project-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem;
+    }
+    .project-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; display: grid; grid-template-columns: 1fr 1.2fr;
+    }
+    .project-card img {
+      width: 100%; height: 100%; object-fit: cover; min-height: 180px;
+    }
+    .project-info { padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; }
+    .project-info h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+    .project-info p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.9rem; }
+    .project-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .tag {
+      background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
+      color: var(--cyan); font-size: 0.72rem; font-weight: 600;
+      padding: 0.22rem 0.55rem; border-radius: 5px;
+    }
+
+    /* EDUCATION */
+    .edu-grid {
+      display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem;
+    }
+    .edu-main {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 2rem;
+    }
+    .edu-badge {
+      display: inline-block; background: #981e32; color: #fff;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;
+      padding: 0.3rem 0.7rem; border-radius: 5px; margin-bottom: 1rem;
+    }
+    .edu-main h3 { font-family: 'Orbitron', sans-serif; font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .edu-main .degree { color: var(--orange); font-weight: 600; margin-bottom: 1rem; }
+    .edu-main p { color: var(--text-muted); margin-bottom: 1.2rem; }
+    .course-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .course-list li {
+      font-size: 0.88rem; color: var(--text-muted);
+      padding-left: 1rem; position: relative;
+    }
+    .course-list li::before { content: '▹'; position: absolute; left: 0; color: var(--orange); }
+    .edu-side {
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .edu-stat {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem; text-align: center;
+    }
+    .edu-stat .num { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: var(--orange); font-weight: 700; }
+    .edu-stat .label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    /* BLOG */
+    .blog { background: var(--bg-elevated); }
+    .blog-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+    }
+    .blog-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.6rem; transition: border-color 0.25s;
+    }
+    .blog-card:hover { border-color: var(--orange); }
+    .blog-date { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .blog-card h3 { font-size: 1.05rem; margin-bottom: 0.55rem; line-height: 1.35; }
+    .blog-card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .blog-link { color: var(--orange); font-weight: 600; font-size: 0.88rem; text-decoration: none; }
+    .blog-link:hover { text-decoration: underline; }
+
+    /* CTA */
+    .cta { text-align: center; padding: 5.5rem 1.5rem; }
+    .cta-box {
+      max-width: 640px; margin: 0 auto;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 2.8rem 2.2rem; box-shadow: var(--shadow);
+    }
+    .cta-box h2 { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; margin-bottom: 0.8rem; }
+    .cta-box p { color: var(--text-muted); margin-bottom: 1.6rem; }
+    .cta-buttons { display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; }
+
+    /* FOOTER */
+    footer {
+      background: #050607; border-top: 1px solid var(--border);
+      padding: 3rem 1.5rem 1.8rem;
+    }
+    .footer-inner {
+      max-width: 1140px; margin: 0 auto;
+      display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 2rem;
+    }
+    .footer-brand .logo-text { font-size: 1.15rem; margin-bottom: 0.6rem; display: block; }
+    .footer-brand p { color: var(--text-muted); font-size: 0.9rem; max-width: 260px; }
+    .footer-col h4 { font-size: 0.9rem; margin-bottom: 0.9rem; }
+    .footer-col ul { list-style: none; }
+    .footer-col a {
+      color: var(--text-muted); text-decoration: none; font-size: 0.88rem;
+      display: block; padding: 0.28rem 0;
+    }
+    .footer-col a:hover { color: var(--orange); }
+    .footer-bottom {
+      max-width: 1140px; margin: 2.2rem auto 0; padding-top: 1.3rem;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--text-muted); font-size: 0.82rem;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 980px) {
+      .nav-links { display: none; }
+      .menu-toggle { display: block; }
+      .hero-grid { grid-template-columns: 1fr; }
+      .portrait-wrap { display: none; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .about-grid, .edu-grid, .project-grid { grid-template-columns: 1fr; }
+      .product-grid, .blog-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+      .course-list { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .stats-row { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .hero-buttons, .cta-buttons { flex-direction: column; }
+      .btn { justify-content: center; }
+      .project-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="products.html">Shop</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#education">Education</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li><a href="#contact" class="nav-cta">Contact</a></li>
+        <li><a href="login.html" id="navOwnerLink" style="font-size:0.8rem; opacity:0.5;">Owner</a></li>
+      </ul>
+      <button class="menu-toggle" aria-label="Menu">☰</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-badge">WSU Mechanical Engineering · 3D Printed RC Parts</div>
+          <h1>Building better RC parts<br>while pursuing <span class="accent">mechanical engineering</span></h1>
+          <p class="hero-sub">
+            I’m a mechanical engineering student at Washington State University who designs, 
+            prints, and sells high-performance RC car components. This site is both my shop 
+            and my living resume.
+          </p>
+          <div class="hero-buttons">
+            <a href="products.html" class="btn btn-primary">Shop 3D-Printed Parts →</a>
+            <a href="#projects" class="btn btn-secondary">View RC Projects</a>
+          </div>
+        </div>
+        <div class="portrait-wrap">
+          <img src="assets/portrait.png" alt="Mechanical engineering student with 3D printed RC part">
+          <div class="portrait-label">Designer · Builder · Seller</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- QUICK STATS -->
+  <div class="quick-stats">
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-value">50+</div>
+        <div class="stat-label">Parts Sold</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">WSU</div>
+        <div class="stat-label">MechE Student</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">12+</div>
+        <div class="stat-label">RC Projects</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">∞</div>
+        <div class="stat-label">Rabbit Hole Depth</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABOUT / RESUME SUMMARY -->
+  <section id="about">
+    <div class="section-inner">
+      <div class="section-header">
+        <h2>About &amp; Resume</h2>
+        <p>A quick look at who I am, what I’m studying, and the skills I bring to every print and design.</p>
+      </div>
+      <div class="about-grid">
+        <div class="about-card">
+          <h3>Who I Am</h3>
+          <p>
+            I started Rabithole because I kept wanting RC parts that didn’t exist — lighter, 
+            stronger, better packaging. Instead of waiting, I taught myself CAD, FEA basics, 
+            and advanced 3D printing so I could design and sell them myself.
+          </p>
+          <p>
+            Now every part I ship is both a product and proof of the engineering skills I’m 
+            building in the classroom and the workshop.
+          </p>
+          <div class="skill-tags">
+            <span class="skill-tag">SolidWorks / Fusion 360</span>
+            <span class="skill-tag">FEA Basics</span>
+            <span class="skill-tag">FDM &amp; SLA Printing</span>
+            <span class="skill-tag">Material Selection</span>
+            <span class="skill-tag">Topology Optimization</span>
+            <span class="skill-tag">RC Dynamics</span>
+          </div>
+        </div>
+        <div class="about-card">
+          <h3>Experience Snapshot</h3>
+          <ul class="resume-list">
+            <li>
+              <span class="role">Founder &amp; Designer — Rabithole</span>
+              <span class="meta">2023 – Present</span>
+            </li>
+            <li>
+              <span class="role">3D-Printed RC Parts (Sales &amp; Support)</span>
+              <span class="meta">Ongoing</span>
+            </li>
+            <li>
+              <span class="role">Personal RC Chassis &amp; Suspension Projects</span>
+              <span class="meta">2022 – Present</span>
+            </li>
+            <li>
+              <span class="role">WSU Mechanical Engineering Coursework</span>
+              <span class="meta">In Progress</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCTS / SHOP (EMPHASIS) -->
+  <section class="products" id="products">
+    <div class="section-inner">
+      <div class="section-header center">
+        <h2>3D-Printed RC Parts for Sale</h2>
+        <p>Functional, track-tested components designed and printed by a mechanical engineering student. Buy ready-to-run or request custom geometry.</p>
+        <div style="margin-top:1.2rem; display:flex; gap:0.8rem; justify-content:center; flex-wrap:wrap;">
+          <a href="products.html" class="btn btn-secondary" style="font-size:0.9rem; padding:0.55rem 1.1rem;">View full shop</a>
+        </div>
+      </div>
+      <div class="product-grid">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/suspension.png" alt="Carbon-fiber nylon suspension arms">
+          </div>
+          <div class="product-body">
+            <h3>CF-Nylon Suspension Arms</h3>
+            <p>Topology-optimized A-arms printed in carbon-fiber reinforced nylon. Bolt-on for popular 1/10 platforms.</p>
+            <div class="product-meta">
+              <span class="price">$34</span>
+              <a href="products.html#product=prod-1" class="btn btn-primary btn-sm">View in Shop</a>
+            </div>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/parts.png" alt="Precision RC drivetrain and aero parts">
+          </div>
+          <div class="product-body">
+            <h3>Hybrid Drivetrain Kit</h3>
+            <p>Aluminum + printed differential housings and motor mounts. Designed for strength and easy maintenance.</p>
+            <div class="product-meta">
+              <span class="price">$48</span>
+              <a href="products.html#product=prod-2" class="btn btn-primary btn-sm">View in Shop</a>
+            </div>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/hero.png" alt="Custom RC aero and chassis parts">
+          </div>
+          <div class="product-body">
+            <h3>Custom Aero Wing Set</h3>
+            <p>Low-drag rear wing and side dams. Printed and finished for immediate track use or further painting.</p>
+            <div class="product-meta">
+              <span class="price">$29</span>
+              <a href="products.html#product=prod-3" class="btn btn-primary btn-sm">View in Shop</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="text-align:center; margin-top:2rem; color:var(--text-muted); font-size:0.95rem;">
+        Need something that isn’t listed? I take custom design + print commissions.
+        <a href="products.html" style="color:var(--orange); font-weight:600;">View full shop →</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- RC PROJECTS -->
+  <section id="projects">
+    <div class="section-inner">
+      <div class="section-header">
+        <h2>RC Projects</h2>
+        <p>Selected builds that taught me the most — from chassis redesigns to suspension geometry experiments.</p>
+      </div>
+      <div class="project-grid">
+        <div class="project-card">
+          <img src="assets/suspension.png" alt="Suspension project">
+          <div class="project-info">
+            <h3>Lightweight Suspension Overhaul</h3>
+            <p>Replaced stock arms and towers with CF-nylon topology-optimized parts. Reduced unsprung weight while increasing roll stiffness.</p>
+            <div class="project-tags">
+              <span class="tag">FEA</span>
+              <span class="tag">PA6-CF</span>
+              <span class="tag">1/10 Buggy</span>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <img src="assets/parts.png" alt="Drivetrain project">
+          <div class="project-info">
+            <h3>Hybrid Diff &amp; Motor Mount</h3>
+            <p>Combined CNC aluminum and printed housings for a stronger, serviceable drivetrain that still fits the original chassis envelope.</p>
+            <div class="project-tags">
+              <span class="tag">Hybrid Mfg</span>
+              <span class="tag">CAD</span>
+              <span class="tag">Drivetrain</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDUCATION -->
+  <section id="education">
+    <div class="section-inner">
+      <div class="section-header">
+        <h2>Education</h2>
+        <p>The formal path that fuels the rabbit hole.</p>
+      </div>
+      <div class="edu-grid">
+        <div class="edu-main">
+          <span class="edu-badge">WASHINGTON STATE UNIVERSITY</span>
+          <h3>Mechanical Engineering</h3>
+          <div class="degree">B.S. in progress · Expected graduation TBD</div>
+          <p>
+            I’m applying classroom theory — solid mechanics, materials, manufacturing processes, 
+            and dynamics — directly to the RC parts I design and sell. The shop is my ongoing 
+            senior project.
+          </p>
+          <ul class="course-list">
+            <li>Statics &amp; Strength of Materials</li>
+            <li>Thermodynamics</li>
+            <li>CAD / Solid Modeling</li>
+            <li>Manufacturing Processes</li>
+            <li>Dynamics &amp; Vibrations</li>
+            <li>Materials Science</li>
+          </ul>
+        </div>
+        <div class="edu-side">
+          <div class="edu-stat">
+            <div class="num">MechE</div>
+            <div class="label">Core focus</div>
+          </div>
+          <div class="edu-stat">
+            <div class="num">Hands-on</div>
+            <div class="label">Design → Print → Test loop</div>
+          </div>
+          <div class="edu-stat">
+            <div class="num">Real sales</div>
+            <div class="label">Customer feedback as validation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOG -->
+  <section class="blog" id="blog">
+    <div class="section-inner">
+      <div class="section-header center">
+        <h2>Blog</h2>
+        <p>Notes from the workshop — design decisions, print settings, race results, and lessons learned.</p>
+        <div style="margin-top:1.2rem; display:flex; gap:0.8rem; justify-content:center; flex-wrap:wrap;">
+          <a href="blog.html" class="btn btn-secondary" style="font-size:0.9rem; padding:0.55rem 1.1rem;">View all posts</a>
+        </div>
+      </div>
+      <div class="blog-grid">
+        <div class="blog-card">
+          <div class="blog-date">July 2026</div>
+          <h3>Why I switched to PA6-CF for suspension arms</h3>
+          <p>Layer adhesion, stiffness-to-weight, and what failed on the first three print iterations.</p>
+          <a href="blog.html" class="blog-link">Read more →</a>
+        </div>
+        <div class="blog-card">
+          <div class="blog-date">June 2026</div>
+          <h3>Topology optimization for RC A-arms (quick guide)</h3>
+          <p>How I set up load cases in Fusion and what I keep versus what the solver wants to delete.</p>
+          <a href="blog.html" class="blog-link">Read more →</a>
+        </div>
+        <div class="blog-card">
+          <div class="blog-date">May 2026</div>
+          <h3>From classroom FEA to track testing</h3>
+          <p>Translating a solid-mechanics assignment into a real part that survived a full race weekend.</p>
+          <a href="blog.html" class="blog-link">Read more →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT / CTA -->
+  <section class="cta" id="contact">
+    <div class="cta-box">
+      <h2>Let’s talk parts, projects, or opportunities</h2>
+      <p>
+        Whether you want to buy a part, commission a custom design, or chat about mechanical 
+        engineering and RC builds — drop a line.
+      </p>
+      <div class="cta-buttons">
+        <a href="mailto:hello@rabithole.com" class="btn btn-primary">Email hello@rabithole.com</a>
+        <a href="products.html" class="btn btn-secondary">Browse Shop</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-text">Rabi<span style="color:var(--orange)">thole</span></span>
+        <p>3D-printed RC parts, mechanical engineering student portfolio, and a continuous deep dive into performance.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="products.html">Shop</a></li>
+          <li><a href="#projects">Projects</a></li>
+          <li><a href="#education">Education</a></li>
+          <li><a href="blog.html">Blog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>About</h4>
+        <ul>
+          <li><a href="#about">Resume</a></li>
+          <li><a href="#education">WSU MechE</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Connect</h4>
+        <ul>
+          <li><a href="#">Instagram</a></li>
+          <li><a href="#">YouTube</a></li>
+          <li><a href="#">Discord</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Rabithole · Personal portfolio &amp; shop</span>
+      <span>Built while studying Mechanical Engineering</span>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelector('.menu-toggle').addEventListener('click', () => {
+      const links = document.querySelector('.nav-links');
+      if (links.style.display === 'flex') {
+        links.style.display = 'none';
+      } else {
+        links.style.display = 'flex';
+        links.style.flexDirection = 'column';
+        links.style.position = 'absolute';
+        links.style.top = '65px';
+        links.style.right = '1.5rem';
+        links.style.background = 'var(--bg-card)';
+        links.style.padding = '1.1rem';
+        links.style.borderRadius = '12px';
+        links.style.border = '1px solid var(--border)';
+        links.style.gap = '0.9rem';
+        links.style.zIndex = '1001';
+      }
+    });
+  </script>
+  <script>
+    if (sessionStorage.getItem('rabithole_auth') === '1') {
+      const link = document.getElementById('navOwnerLink');
+      if (link) {
+        link.href = 'admin.html';
+        link.textContent = 'Dashboard';
+        link.style.opacity = '1';
+        link.style.color = 'var(--orange)';
+      }
+    }
+  </script>
+</body>
+</html>

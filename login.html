@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+    }
+    .nav-inner {
+      max-width: 480px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--orange); }
+
+    .main {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+    .login-card {
+      width: 100%; max-width: 400px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.2rem 1.8rem;
+    }
+    .login-card h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 1.45rem; margin-bottom: 0.35rem;
+    }
+    .login-card .sub {
+      color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.8rem;
+    }
+    .form-group { margin-bottom: 1.2rem; }
+    label {
+      display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%; padding: 0.8rem 1rem; border-radius: 10px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      color: var(--text); font-size: 1rem; font-family: inherit; outline: none;
+    }
+    input:focus { border-color: var(--orange); }
+    .btn {
+      width: 100%; padding: 0.9rem; border-radius: 10px; border: none;
+      background: var(--orange); color: #fff; font-weight: 600; font-size: 1rem;
+      cursor: pointer; font-family: inherit; margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--orange-dim); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error {
+      display: none; margin-top: 1rem; padding: 0.75rem 1rem;
+      background: rgba(220,60,60,0.12); border: 1px solid rgba(220,60,60,0.35);
+      color: #ff8a8a; border-radius: 10px; font-size: 0.9rem;
+    }
+    .error.show { display: block; }
+    .hint {
+      margin-top: 1.4rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);
+    }
+    .mode {
+      margin-top: 0.8rem; text-align: center; font-size: 0.75rem; color: var(--text-muted);
+    }
+    .password-field { position: relative; }
+    .password-field input { padding-right: 4rem; }
+    .toggle-pw {
+      position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+      background: transparent; border: none; color: var(--text-muted);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0.35rem 0.5rem;
+      font-family: inherit;
+    }
+    .toggle-pw:hover { color: var(--orange); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">← Back to site</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="login-card">
+      <h1>Owner Sign In</h1>
+      <p class="sub">Credentials are checked against the database.</p>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-field">
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+            <button type="button" class="toggle-pw" data-target="password" aria-label="Show password">Show</button>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="submitBtn">Sign In</button>
+        <div id="error" class="error"></div>
+      </form>
+
+      <p class="hint">Default account: <strong>admin</strong> / <strong>rabithole</strong></p>
+      <p class="mode" id="modeHint"></p>
+    </div>
+  </div>
+
+  <script>
+    // Already signed in?
+    if (sessionStorage.getItem('rabithole_auth') === '1' && sessionStorage.getItem('rabithole_token')) {
+      window.location.href = 'admin.html';
+    }
+
+    const errorEl = document.getElementById('error');
+    const modeHint = document.getElementById('modeHint');
+
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      });
+    });
+
+    // Probe if server/API is available
+    fetch('/api/products')
+      .then(r => { modeHint.textContent = r.ok ? 'Connected to database server' : 'Server offline — using local fallback'; })
+      .catch(() => { modeHint.textContent = 'Server offline — using local fallback'; });
+
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('submitBtn');
+      errorEl.classList.remove('show');
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      try {
+        // Try database login first
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          sessionStorage.setItem('rabithole_auth', '1');
+          sessionStorage.setItem('rabithole_token', data.token);
+          sessionStorage.setItem('rabithole_user', data.user.username);
+          if (data.user.displayName) {
+            sessionStorage.setItem('rabithole_display', data.user.displayName);
+          }
+          window.location.href = 'admin.html';
+          return;
+        }
+
+        // API responded but credentials wrong
+        if (res.status === 401 || res.status === 400) {
+          const data = await res.json().catch(() => ({}));
+          errorEl.textContent = data.error || 'Invalid username or password.';
+          errorEl.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Sign In';
+          return;
+        }
+
+        throw new Error('API error ' + res.status);
+      } catch (err) {
+        // Server not running — local fallback (demo only)
+        if (username === 'admin' && password === 'rabithole') {
+          sessionStorage.setItem('rabithole_auth', '1');
+          sessionStorage.setItem('rabithole_token', 'local-fallback');
+          sessionStorage.setItem('rabithole_user', 'admin');
+          window.location.href = 'admin.html';
+          return;
+        }
+        errorEl.textContent = 'Invalid username or password. (Start the server for database login.)';
+        errorEl.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+  </script>
+</body>
+</html>

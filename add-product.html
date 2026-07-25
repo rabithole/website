@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Product — Rabithole Shop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    .process-steps {
+      display: flex; gap: 0.6rem; margin-bottom: 1.6rem; flex-wrap: wrap;
+    }
+    .step {
+      font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem;
+      border-radius: 999px; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .step.active {
+      background: rgba(255,107,0,0.15); border-color: rgba(255,107,0,0.4); color: var(--orange);
+    }
+
+    .page-title {
+      font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem;
+    }
+    .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
+
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.7rem;
+    }
+
+    .form-group { margin-bottom: 1.3rem; }
+    .form-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    }
+    label {
+      display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem;
+    }
+    label .optional { font-weight: 400; color: var(--text-muted); }
+
+    input[type="text"], input[type="number"], textarea, select {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.98rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--orange); }
+    textarea { min-height: 140px; resize: vertical; line-height: 1.55; }
+    select { cursor: pointer; }
+
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    .image-options {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-top: 0.5rem;
+    }
+    .image-option {
+      border: 2px solid var(--border); border-radius: 8px; overflow: hidden;
+      cursor: pointer; aspect-ratio: 1; position: relative; transition: border-color 0.2s;
+    }
+    .image-option img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .image-option.selected { border-color: var(--orange); }
+    .image-option.selected::after {
+      content: '✓'; position: absolute; top: 4px; right: 6px;
+      background: var(--orange); color: #fff; width: 20px; height: 20px;
+      border-radius: 50%; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.8rem 1.4rem; border-radius: 10px; font-weight: 600;
+      font-size: 0.95rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-ghost {
+      background: transparent; color: var(--text-muted); border: none; padding-left: 0.5rem;
+    }
+    .btn-ghost:hover { color: var(--orange); }
+
+    .status {
+      margin-top: 1.1rem; padding: 0.85rem 1rem; border-radius: 10px;
+      font-size: 0.9rem; display: none;
+    }
+    .status.success {
+      display: block; background: rgba(0,180,100,0.12);
+      border: 1px solid rgba(0,180,100,0.35); color: #5ddea0;
+    }
+    .status.error {
+      display: block; background: rgba(220,60,60,0.12);
+      border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
+    }
+
+    @media (max-width: 560px) {
+      .form-row { grid-template-columns: 1fr; }
+      .image-options { grid-template-columns: repeat(2, 1fr); }
+      .actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="admin.html">Dashboard</a>
+        <a href="products.html">Shop</a>
+        <a href="blog.html">Blog</a>
+        <a href="add-product.html" class="active">Add Product</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="process-steps" id="processSteps">
+      <span class="step active">1. Details</span>
+      <span class="step">2. Image &amp; Price</span>
+      <span class="step">3. Publish</span>
+    </div>
+
+    <h1 class="page-title" id="pageTitle">Add Product for Sale</h1>
+    <p class="page-sub" id="pageSub">List a new 3D-printed RC part. Customers will see it on the Shop page.</p>
+
+    <div class="form-card">
+      <form id="productForm" novalidate>
+        <div class="form-group">
+          <label for="name">Product Name</label>
+          <input type="text" id="name" name="name" placeholder="e.g. CF-Nylon Suspension Arms" required maxlength="100" autocomplete="off">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="price">Price (USD)</label>
+            <input type="number" id="price" name="price" placeholder="34" min="0" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option value="">Select category…</option>
+              <option value="Suspension">Suspension</option>
+              <option value="Drivetrain">Drivetrain</option>
+              <option value="Aero">Aero</option>
+              <option value="Chassis">Chassis</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Custom">Custom / Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="status">Availability</label>
+          <select id="status" name="status">
+            <option value="Available">Available — ships in 3–5 days</option>
+            <option value="Made to Order">Made to Order — 7–14 days</option>
+            <option value="Sold Out">Sold Out</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" placeholder="What is this part? Materials, compatibility, key features, print details…" required></textarea>
+          <div class="hint">Be specific — platform compatibility, material (PA6-CF, PETG, etc.), and what makes it better than stock.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Product Image <span class="optional">(choose one)</span></label>
+          <div class="image-options" id="imageOptions">
+            <div class="image-option selected" data-src="assets/suspension.png">
+              <img src="assets/suspension.png" alt="Suspension">
+            </div>
+            <div class="image-option" data-src="assets/parts.png">
+              <img src="assets/parts.png" alt="Parts">
+            </div>
+            <div class="image-option" data-src="assets/hero.png">
+              <img src="assets/hero.png" alt="Hero">
+            </div>
+            <div class="image-option" data-src="assets/logo.png">
+              <img src="assets/logo.png" alt="Logo">
+            </div>
+          </div>
+          <input type="hidden" id="image" name="image" value="assets/suspension.png">
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Publish Product</button>
+          <a href="products.html" class="btn btn-secondary">Cancel</a>
+        </div>
+
+        <div id="statusMsg" class="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    // Owner-only: require sign-in
+    if (sessionStorage.getItem('rabithole_auth') !== '1') {
+      window.location.href = 'login.html';
+    }
+
+    const STORAGE_KEY = 'rabithole_products';
+
+    function ensureSeedProducts() {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      const seeds = [
+        {
+          id: 'prod-1',
+          name: 'CF-Nylon Suspension Arms',
+          price: 34,
+          category: 'Suspension',
+          status: 'Available',
+          description: 'Topology-optimized A-arms printed in carbon-fiber reinforced nylon. Bolt-on for popular 1/10 platforms. Stronger and lighter than stock plastic.',
+          image: 'assets/suspension.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 20,
+          updatedAt: null
+        },
+        {
+          id: 'prod-2',
+          name: 'Hybrid Drivetrain Kit',
+          price: 48,
+          category: 'Drivetrain',
+          status: 'Available',
+          description: 'Aluminum + printed differential housings and motor mounts. Designed for strength and easy maintenance. Fits most 1/10 touring and buggy chassis.',
+          image: 'assets/parts.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 15,
+          updatedAt: null
+        },
+        {
+          id: 'prod-3',
+          name: 'Custom Aero Wing Set',
+          price: 29,
+          category: 'Aero',
+          status: 'Made to Order',
+          description: 'Low-drag rear wing and side dams. Printed and finished for immediate track use or further painting. Multiple mounting options.',
+          image: 'assets/hero.png',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8,
+          updatedAt: null
+        }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeds));
+    }
+
+    function getProducts() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    function saveProducts(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    // Image selection
+    document.querySelectorAll('.image-option').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        document.getElementById('image').value = el.dataset.src;
+      });
+    });
+
+    // Edit mode
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+    let editing = null;
+
+    if (typeof ensureSeedProducts === 'function') ensureSeedProducts();
+
+    (async function loadEdit() {
+      if (!editId) return;
+      let products = [];
+      if (window.RabitholeDB) products = await RabitholeDB.getProducts();
+      else if (typeof getProducts === 'function') products = getProducts();
+      editing = products.find(p => p.id === editId) || null;
+      if (editing) {
+        document.getElementById('pageTitle').textContent = 'Edit Product';
+        document.getElementById('pageSub').textContent = 'Update product details and save changes.';
+        document.getElementById('submitBtn').textContent = 'Save Changes';
+        document.getElementById('name').value = editing.name;
+        document.getElementById('price').value = editing.price;
+        document.getElementById('category').value = editing.category;
+        document.getElementById('status').value = editing.status;
+        document.getElementById('description').value = editing.description;
+        document.getElementById('image').value = editing.image;
+        document.querySelectorAll('.image-option').forEach(o => {
+          o.classList.toggle('selected', o.dataset.src === editing.image);
+        });
+      }
+    })();
+
+    document.getElementById('productForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const price = parseFloat(document.getElementById('price').value);
+      const category = document.getElementById('category').value;
+      const status = document.getElementById('status').value;
+      const description = document.getElementById('description').value.trim();
+      const image = document.getElementById('image').value;
+      const statusEl = document.getElementById('statusMsg');
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (!name || isNaN(price) || price < 0 || !category || !description) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Please fill in all required fields with valid values.';
+        return;
+      }
+
+      const product = {
+        id: editing ? editing.id : ('prod-' + Date.now()),
+        name, price, category, status, description, image,
+        createdAt: editing ? editing.createdAt : Date.now(),
+        updatedAt: editing ? Date.now() : null,
+        _isEdit: !!editing
+      };
+
+      try {
+        if (window.RabitholeDB) {
+          await RabitholeDB.saveProduct(product);
+        } else {
+          let products = typeof getProducts === 'function' ? getProducts() : [];
+          if (editing) {
+            products = products.map(p => p.id === editing.id ? product : p);
+          } else {
+            products.unshift(product);
+          }
+          if (typeof saveProducts === 'function') saveProducts(products);
+          else localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+        }
+        statusEl.className = 'status success';
+        statusEl.textContent = editing ? 'Product updated. Redirecting…' : 'Product published! Redirecting to the shop…';
+        document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
+        submitBtn.disabled = true;
+        setTimeout(() => {
+          window.location.href = 'products.html' + (editing ? '#product=' + editing.id : '');
+        }, 850);
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');
+      }
+    });
+  </script>
+</body>
+</html>

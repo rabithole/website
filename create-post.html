@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Write a Post — Rabithole Blog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    .page-title {
+      font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem;
+    }
+    .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
+
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.7rem;
+    }
+
+    .form-group { margin-bottom: 1.35rem; }
+    label {
+      display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem;
+    }
+    label .optional { font-weight: 400; color: var(--text-muted); }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.98rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--orange); }
+    textarea { min-height: 300px; resize: vertical; line-height: 1.6; }
+
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    .char-count {
+      text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;
+    }
+
+    .actions {
+      display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.8rem 1.4rem; border-radius: 10px; font-weight: 600;
+      font-size: 0.95rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-ghost {
+      background: transparent; color: var(--text-muted); border: none; padding-left: 0.5rem;
+    }
+    .btn-ghost:hover { color: var(--orange); }
+
+    .status {
+      margin-top: 1.1rem; padding: 0.85rem 1rem; border-radius: 10px;
+      font-size: 0.9rem; display: none;
+    }
+    .status.success {
+      display: block; background: rgba(0,180,100,0.12);
+      border: 1px solid rgba(0,180,100,0.35); color: #5ddea0;
+    }
+    .status.error {
+      display: block; background: rgba(220,60,60,0.12);
+      border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
+    }
+
+    .process-steps {
+      display: flex; gap: 0.6rem; margin-bottom: 1.8rem; flex-wrap: wrap;
+    }
+    .step {
+      font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem;
+      border-radius: 999px; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .step.active {
+      background: rgba(255,107,0,0.15); border-color: rgba(255,107,0,0.4); color: var(--orange);
+    }
+
+    @media (max-width: 560px) {
+      .actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="admin.html">Dashboard</a>
+        <a href="blog.html">Blog</a>
+        <a href="products.html">Shop</a>
+        <a href="create-post.html" class="active">Write</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="process-steps" id="processSteps">
+      <span class="step active">1. Write</span>
+      <span class="step">2. Review</span>
+      <span class="step">3. Publish</span>
+    </div>
+
+    <h1 class="page-title" id="pageTitle">Write a New Post</h1>
+    <p class="page-sub" id="pageSub">Share design decisions, print settings, race results, or engineering lessons from the workshop.</p>
+
+    <div class="form-card">
+      <form id="postForm" novalidate>
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input type="text" id="title" name="title" placeholder="e.g. Why I switched to PA6-CF for suspension arms" required maxlength="140" autocomplete="off">
+          <div class="char-count"><span id="titleCount">0</span>/140</div>
+        </div>
+
+        <div class="form-group">
+          <label for="tags">Tags <span class="optional">(optional, comma-separated)</span></label>
+          <input type="text" id="tags" name="tags" placeholder="materials, FEA, suspension, 3d-printing">
+          <div class="hint">Helps readers find related posts later.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="content">Content</label>
+          <textarea id="content" name="content" placeholder="Write the post here…
+
+Tips:
+• Start with the problem or question
+• Include specific numbers / settings when possible
+• End with what you learned or what you’d do differently" required></textarea>
+          <div class="hint">Line breaks are preserved. Keep it practical — other builders will thank you.</div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Publish Post</button>
+          <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
+          <a href="blog.html" class="btn btn-ghost">Cancel</a>
+        </div>
+
+        <div id="status" class="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    // Owner-only: require sign-in
+    if (sessionStorage.getItem('rabithole_auth') !== '1') {
+      window.location.href = 'login.html';
+    }
+
+    const STORAGE_KEY = 'rabithole_blog_posts';
+
+    // ---------- Seed data (runs only once) ----------
+    function ensureSeedPosts() {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      const seeds = [
+        {
+          id: 'seed-1',
+          title: 'Why I switched to PA6-CF for suspension arms',
+          tags: ['materials', 'suspension', '3d-printing'],
+          content: 'After three failed print iterations with regular nylon and PETG, I moved to PA6-CF (carbon-fiber reinforced nylon).\n\nKey observations:\n• Layer adhesion improved dramatically once dried properly (4h at 70°C).\n• Stiffness-to-weight is noticeably better than stock plastic arms.\n• First race weekend: zero cracks, only minor scuffing on the lower arms.\n\nPrint settings that worked:\n• 0.2 mm layer height, 4 walls, 40% gyroid infill\n• Nozzle 280°C, bed 80°C, enclosure on\n• Dry filament is non-negotiable.',
+          date: '2026-07-12',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 11,
+          updatedAt: null
+        },
+        {
+          id: 'seed-2',
+          title: 'Topology optimization for RC A-arms (quick guide)',
+          tags: ['FEA', 'CAD', 'design'],
+          content: 'I set up simple load cases in Fusion 360 for a 1/10 buggy A-arm:\n\n1. Vertical bump (3× vehicle weight)\n2. Cornering load (lateral)\n3. Braking force through the kingpin axis\n\nWhat the solver wants to remove is often the “pretty” material. What I keep:\n• Continuous load path from outer pivot to inner mount\n• Extra material around the ball stud bosses\n• Enough thickness for heat-set inserts\n\nResult: ~18% mass reduction vs. the first solid design while surviving the same track abuse.',
+          date: '2026-06-28',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 25,
+          updatedAt: null
+        },
+        {
+          id: 'seed-3',
+          title: 'From classroom FEA to track testing',
+          tags: ['education', 'WSU', 'validation'],
+          content: 'A solid-mechanics homework assignment asked us to analyze a simple cantilever. I used the same workflow on a real shock tower.\n\nClassroom → Workshop translation:\n• Same boundary conditions mindset\n• Different safety factors (RC parts can take more risk)\n• Immediate feedback from the track instead of a graded report\n\nThe part that “passed” the FEA still needed a small rib after the first heat. Theory is the map; the track is the territory.',
+          date: '2026-05-15',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 69,
+          updatedAt: null
+        }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeds));
+    }
+
+    function getPosts() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    function savePosts(posts) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+    }
+
+    // ---------- Edit mode detection ----------
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+    let editingPost = null;
+
+    if (typeof ensureSeedPosts === 'function') ensureSeedPosts();
+
+    (async function loadEdit() {
+      if (!editId) return;
+      let posts = window.RabitholeDB ? await RabitholeDB.getPosts() : (typeof getPosts === 'function' ? getPosts() : []);
+      editingPost = posts.find(p => p.id === editId) || null;
+      if (editingPost) {
+        document.getElementById('pageTitle').textContent = 'Edit Post';
+        document.getElementById('pageSub').textContent = 'Update the content and save your changes.';
+        document.getElementById('submitBtn').textContent = 'Save Changes';
+        document.getElementById('title').value = editingPost.title;
+        document.getElementById('tags').value = (editingPost.tags || []).join(', ');
+        document.getElementById('content').value = editingPost.content;
+        document.getElementById('titleCount').textContent = editingPost.title.length;
+      }
+    })();
+
+    document.getElementById('title').addEventListener('input', function () {
+      document.getElementById('titleCount').textContent = this.value.length;
+    });
+
+    document.getElementById('previewBtn').addEventListener('click', function () {
+      const title = document.getElementById('title').value.trim();
+      const content = document.getElementById('content').value.trim();
+      if (!title && !content) { alert('Nothing to preview yet.'); return; }
+      const w = window.open('', '_blank', 'width=640,height=720');
+      w.document.write('<html><head><title>Preview</title><style>body{font-family:system-ui;background:#111;color:#eee;padding:2rem;line-height:1.6}h1{font-size:1.6rem;margin-bottom:1rem}pre{white-space:pre-wrap;font-family:inherit}</style></head><body><h1>' +
+        (title || '(no title)') + '</h1><pre>' + (content || '(no content)') + '</pre></body></html>');
+      w.document.close();
+    });
+
+    document.getElementById('postForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const tagsRaw = document.getElementById('tags').value.trim();
+      const content = document.getElementById('content').value.trim();
+      const statusEl = document.getElementById('status');
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (!title || !content) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Title and content are required.';
+        return;
+      }
+
+      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const now = new Date();
+      const post = {
+        id: editingPost ? editingPost.id : ('post-' + Date.now()),
+        title,
+        tags,
+        content,
+        date: editingPost ? editingPost.date : now.toISOString().slice(0, 10),
+        createdAt: editingPost ? editingPost.createdAt : Date.now(),
+        updatedAt: editingPost ? Date.now() : null,
+        _isEdit: !!editingPost
+      };
+
+      try {
+        if (window.RabitholeDB) {
+          await RabitholeDB.savePost(post);
+        } else {
+          let posts = typeof getPosts === 'function' ? getPosts() : [];
+          if (editingPost) posts = posts.map(p => p.id === editingPost.id ? post : p);
+          else posts.unshift(post);
+          if (typeof savePosts === 'function') savePosts(posts);
+          else localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+        }
+        statusEl.className = 'status success';
+        statusEl.textContent = editingPost ? 'Changes saved. Redirecting…' : 'Post published! Redirecting to the blog…';
+        document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
+        submitBtn.disabled = true;
+        setTimeout(() => {
+          window.location.href = 'blog.html' + (editingPost ? '#post=' + editingPost.id : '');
+        }, 850);
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');
+      }
+    });
+  </script>
+</body>
+</html>

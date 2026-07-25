@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,10,0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+    }
+    .nav-inner {
+      max-width: 860px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+    .nav-cta {
+      background: var(--orange); color: #fff !important; padding: 0.42rem 0.95rem;
+      border-radius: 8px; font-weight: 600;
+    }
+    .nav-cta:hover { background: var(--orange-dim); }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    #listView { display: block; }
+    #postView { display: none; }
+
+    .page-header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      flex-wrap: wrap; gap: 1rem; margin-bottom: 1.8rem;
+    }
+    .page-header h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 1.75rem;
+    }
+    .page-header p { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.95rem; }
+
+    .process-bar {
+      display: flex; gap: 0.5rem; margin-bottom: 1.8rem; flex-wrap: wrap;
+    }
+    .process-bar span {
+      font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem;
+      border-radius: 999px; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+
+    .post-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .post-item {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.35rem 1.5rem;
+      cursor: pointer; transition: border-color 0.2s, transform 0.2s;
+    }
+    .post-item:hover { border-color: var(--orange); transform: translateY(-2px); }
+
+    .post-meta {
+      display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap;
+      font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.45rem;
+    }
+    .post-item h2 { font-size: 1.15rem; margin-bottom: 0.4rem; line-height: 1.35; }
+    .post-excerpt {
+      color: var(--text-muted); font-size: 0.92rem;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .tag {
+      background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
+      color: var(--cyan); font-size: 0.7rem; font-weight: 600;
+      padding: 0.16rem 0.48rem; border-radius: 5px;
+    }
+    .edited-badge {
+      font-size: 0.7rem; color: var(--text-muted); font-style: italic;
+    }
+
+    .empty-state {
+      text-align: center; padding: 3.2rem 1.5rem;
+      background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state p { color: var(--text-muted); margin-bottom: 1.1rem; }
+
+    /* Single post */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem;
+    }
+    .back-btn:hover { color: var(--orange); }
+
+    .article {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 2rem 1.8rem;
+    }
+    .article .post-meta { margin-bottom: 0.7rem; }
+    .article h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 1.55rem;
+      line-height: 1.3; margin-bottom: 1.3rem;
+    }
+    .article-body {
+      color: var(--text); font-size: 1.02rem; white-space: pre-wrap; line-height: 1.7;
+    }
+    .article-tags { margin-top: 1.8rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+    .actions-bar {
+      display: flex; gap: 0.7rem; margin-top: 1.7rem; flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.65rem 1.15rem; border-radius: 9px; font-weight: 600;
+      font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-danger {
+      background: transparent; color: #ff8a8a; border: 1px solid rgba(255,100,100,0.35);
+      font-size: 0.85rem; padding: 0.5rem 0.9rem;
+    }
+    .btn-danger:hover { background: rgba(220,60,60,0.12); }
+
+    @media (max-width: 600px) {
+      .page-header { flex-direction: column; align-items: flex-start; }
+      .article { padding: 1.4rem 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="blog.html" class="active">Blog</a>
+        <a href="login.html" class="nav-cta" id="navAdminLink">Owner</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- LIST -->
+    <div id="listView">
+      <div class="page-header">
+        <div>
+          <h1>Blog</h1>
+          <p>Design notes, print settings, race results, and engineering lessons.</p>
+        </div>
+      </div>
+
+
+      <div id="postList" class="post-list"></div>
+    </div>
+
+    <!-- SINGLE POST -->
+    <div id="postView">
+      <button class="back-btn" id="backBtn">← Back to all posts</button>
+      <article class="article" id="articleContent"></article>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    const STORAGE_KEY = 'rabithole_blog_posts';
+
+    async function loadPosts() {
+      if (window.RabitholeDB) return RabitholeDB.getPosts();
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+    async function removePost(id) {
+      if (window.RabitholeDB) return RabitholeDB.deletePost(id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify((await loadPosts()).filter(p => p.id !== id)));
+    }
+
+    function ensureSeedPosts() {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      const seeds = [
+        {
+          id: 'seed-1',
+          title: 'Why I switched to PA6-CF for suspension arms',
+          tags: ['materials', 'suspension', '3d-printing'],
+          content: 'After three failed print iterations with regular nylon and PETG, I moved to PA6-CF (carbon-fiber reinforced nylon).\n\nKey observations:\n• Layer adhesion improved dramatically once dried properly (4h at 70°C).\n• Stiffness-to-weight is noticeably better than stock plastic arms.\n• First race weekend: zero cracks, only minor scuffing on the lower arms.\n\nPrint settings that worked:\n• 0.2 mm layer height, 4 walls, 40% gyroid infill\n• Nozzle 280°C, bed 80°C, enclosure on\n• Dry filament is non-negotiable.',
+          date: '2026-07-12',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 11,
+          updatedAt: null
+        },
+        {
+          id: 'seed-2',
+          title: 'Topology optimization for RC A-arms (quick guide)',
+          tags: ['FEA', 'CAD', 'design'],
+          content: 'I set up simple load cases in Fusion 360 for a 1/10 buggy A-arm:\n\n1. Vertical bump (3× vehicle weight)\n2. Cornering load (lateral)\n3. Braking force through the kingpin axis\n\nWhat the solver wants to remove is often the “pretty” material. What I keep:\n• Continuous load path from outer pivot to inner mount\n• Extra material around the ball stud bosses\n• Enough thickness for heat-set inserts\n\nResult: ~18% mass reduction vs. the first solid design while surviving the same track abuse.',
+          date: '2026-06-28',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 25,
+          updatedAt: null
+        },
+        {
+          id: 'seed-3',
+          title: 'From classroom FEA to track testing',
+          tags: ['education', 'WSU', 'validation'],
+          content: 'A solid-mechanics homework assignment asked us to analyze a simple cantilever. I used the same workflow on a real shock tower.\n\nClassroom → Workshop translation:\n• Same boundary conditions mindset\n• Different safety factors (RC parts can take more risk)\n• Immediate feedback from the track instead of a graded report\n\nThe part that “passed” the FEA still needed a small rib after the first heat. Theory is the map; the track is the territory.',
+          date: '2026-05-15',
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 69,
+          updatedAt: null
+        }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeds));
+    }
+
+    function getPosts() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    function savePosts(posts) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function excerpt(text, max = 145) {
+      const clean = text.replace(/\n+/g, ' ').trim();
+      return clean.length > max ? clean.slice(0, max) + '…' : clean;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    async function renderList() {
+      const posts = (await loadPosts()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const container = document.getElementById('postList');
+
+      if (posts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>No posts yet. Check back soon.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = posts.map(p => `
+        <div class="post-item" data-id="${p.id}">
+          <div class="post-meta">
+            <span>${formatDate(p.date)}</span>
+            ${p.updatedAt ? '<span class="edited-badge">· edited</span>' : ''}
+            ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+          </div>
+          <h2>${escapeHtml(p.title)}</h2>
+          <p class="post-excerpt">${escapeHtml(excerpt(p.content))}</p>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.post-item').forEach(el => {
+        el.addEventListener('click', () => showPost(el.dataset.id));
+      });
+    }
+
+    async function showPost(id) {
+      const post = (await loadPosts()).find(p => p.id === id);
+      if (!post) return;
+
+      document.getElementById('listView').style.display = 'none';
+      document.getElementById('postView').style.display = 'block';
+
+      const tagsHtml = (post.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+      const editedNote = post.updatedAt
+        ? `<span class="edited-badge">· last edited ${new Date(post.updatedAt).toLocaleDateString()}</span>`
+        : '';
+
+      document.getElementById('articleContent').innerHTML = `
+        <div class="post-meta">
+          <span>${formatDate(post.date)}</span>
+          ${editedNote}
+        </div>
+        <h1>${escapeHtml(post.title)}</h1>
+        <div class="article-body">${escapeHtml(post.content)}</div>
+        <div class="article-tags">${tagsHtml}</div>
+        <div class="actions-bar">
+          <a href="create-post.html?id=${post.id}" class="btn btn-secondary">Edit Post</a>
+          <button class="btn btn-danger" onclick="deletePost('${post.id}')">Delete</button>
+        </div>
+      `;
+
+      history.replaceState(null, '', '#post=' + id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showList() {
+      document.getElementById('listView').style.display = 'block';
+      document.getElementById('postView').style.display = 'none';
+      history.replaceState(null, '', window.location.pathname);
+      renderList();
+    }
+
+    async function deletePost(id) {
+      if (!confirm('Delete this post permanently? This cannot be undone.')) return;
+      await removePost(id);
+      showList();
+    }
+
+    document.getElementById('backBtn').addEventListener('click', showList);
+
+    // Init
+    if (typeof ensureSeedPosts === 'function') ensureSeedPosts();
+    (async function init() {
+      if (window.RabitholeDB) console.log('Rabithole storage:', await RabitholeDB.storageMode());
+      await renderList();
+      if (window.location.hash.startsWith('#post=')) await showPost(window.location.hash.slice(6));
+    })();
+
+    // Deep link
+    
+    const isOwner = sessionStorage.getItem('rabithole_auth') === '1';
+    if (isOwner) {
+      const navLink = document.getElementById('navAdminLink');
+      if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
+    }
+
+    const _origShowPost = showPost;
+    showPost = function(id) {
+      _origShowPost(id);
+      if (!isOwner) {
+        const actions = document.querySelector('.actions-bar');
+        if (actions) actions.innerHTML = '';
+      }
+    };
+
+  </script>
+</body>
+</html>
