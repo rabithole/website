@@ -50,6 +50,14 @@
 
     .container { max-width: 760px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
 
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem; padding: 0;
+      text-decoration: none;
+    }
+    .back-btn:hover { color: var(--orange); }
+
     .process-steps {
       display: flex; gap: 0.6rem; margin-bottom: 1.6rem; flex-wrap: wrap;
     }
@@ -183,6 +191,7 @@
   </nav>
 
   <div class="container">
+    <a href="admin.html" class="back-btn">← Back to Dashboard</a>
     <div class="process-steps" id="processSteps">
       <span class="step active">1. Details</span>
       <span class="step">2. Image &amp; Price</span>

@@ -53,6 +53,14 @@
     .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
     .page-sub { color: var(--text-muted); font-size: 0.98rem; }
 
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem; padding: 0;
+      text-decoration: none;
+    }
+    .back-btn:hover { color: var(--orange); }
+
     .btn {
       display: inline-flex; align-items: center; gap: 0.4rem;
       padding: 0.7rem 1.2rem; border-radius: 9px; font-weight: 600;
@@ -125,6 +133,7 @@
   </nav>
 
   <div class="container">
+    <a href="admin.html" class="back-btn">← Back to Dashboard</a>
     <div class="page-head">
       <div>
         <h1 class="page-title">Manage Products</h1>
@@ -156,6 +165,26 @@
       return (status || '').replace(/\s+/g, '-');
     }
 
+    async function loadSalesByProduct() {
+      // Best-effort: sales figures are a bonus, so a failure here shouldn't
+      // block the product list itself from rendering.
+      const sales = {};
+      try {
+        const orders = await RabitholeDB.getOrders();
+        orders.filter(o => o.status === 'COMPLETED').forEach(o => {
+          o.items.forEach(li => {
+            if (!li.productId) return;
+            if (!sales[li.productId]) sales[li.productId] = { units: 0, revenue: 0 };
+            sales[li.productId].units += 1;
+            sales[li.productId].revenue += Number(li.amount || 0);
+          });
+        });
+      } catch (err) {
+        // Ignore — columns just show 0 sold / $0 revenue.
+      }
+      return sales;
+    }
+
     async function load() {
       const wrap = document.getElementById('productsTableWrap');
       if (!window.RabitholeDB) {
@@ -169,6 +198,7 @@
         wrap.innerHTML = `<div class="empty-state">Could not load products: ${err.message}</div>`;
         return;
       }
+      const sales = await loadSalesByProduct();
 
       products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -185,11 +215,15 @@
               <th>Category</th>
               <th>Price</th>
               <th>Status</th>
+              <th>Sold</th>
+              <th>Revenue</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            ${products.map(p => `
+            ${products.map(p => {
+              const s = sales[p.id] || { units: 0, revenue: 0 };
+              return `
               <tr data-product-id="${p.id}">
                 <td data-label="Product">
                   <div class="prod-cell">
@@ -200,6 +234,8 @@
                 <td data-label="Category">${escapeHtml(p.category)}</td>
                 <td data-label="Price">${formatPrice(p.price)}</td>
                 <td data-label="Status"><span class="status-pill ${statusClass(p.status)}">${escapeHtml(p.status)}</span></td>
+                <td data-label="Sold">${s.units}</td>
+                <td data-label="Revenue">${formatPrice(s.revenue)}</td>
                 <td data-label="">
                   <div class="row-actions">
                     <a class="btn-edit" href="add-product.html?id=${encodeURIComponent(p.id)}">Edit</a>
@@ -207,7 +243,8 @@
                   </div>
                 </td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       `;

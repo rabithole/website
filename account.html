@@ -47,6 +47,14 @@
 
     .container { max-width: 640px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
 
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem; padding: 0;
+      text-decoration: none;
+    }
+    .back-btn:hover { color: var(--orange); }
+
     .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
     .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
 
@@ -142,6 +150,7 @@
   </nav>
 
   <div class="container">
+    <a href="admin.html" class="back-btn">← Back to Dashboard</a>
     <h1 class="page-title">Account Settings</h1>
     <p class="page-sub">Update your sign-in username and/or password.</p>
 
