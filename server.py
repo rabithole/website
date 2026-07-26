@@ -15,9 +15,13 @@ API:
     GET/POST /api/posts
     GET/PUT/DELETE /api/posts/<id>
     GET  /api/paypal/config              public PayPal client id / currency
-    POST /api/paypal/orders               {productId}  -> create PayPal order
+    POST /api/paypal/orders               {items: [{productId, quantity}]}  -> create PayPal order for a cart
     POST /api/paypal/orders/<id>/capture  -> capture an approved order
     GET  /api/orders                      (Authorization: Bearer <token>) owner order history
+    PUT  /api/orders/<id>                  (Authorization: Bearer <token>) update fulfillment status
+    DELETE /api/orders/<id>                (Authorization: Bearer <token>) delete an order record
+    POST /api/upload                      (Authorization: Bearer <token>) upload a product image
+                                           (raw image bytes as the body, Content-Type: image/png|jpeg|webp|gif)
 
 Default owner account (seeded in DB):
     username: admin
@@ -33,8 +37,10 @@ PayPal setup:
 import base64
 import hashlib
 import json
+import posixpath
 import secrets
 import sqlite3
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -45,8 +51,49 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "db" / "rabithole.db"
 PAYPAL_CONFIG_PATH = ROOT / "paypal_config.json"
+UPLOADS_DIR = ROOT / "assets" / "uploads"
 PORT = 8080
 SESSION_DAYS = 7
+FULFILLMENT_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
+UPLOAD_CONTENT_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
+
+# Everything the static file handler is allowed to serve. Anything else under
+# ROOT (server.py, manage_users.py, paypal_config.json, db/, .claude/, ...) is
+# server-side-only and must never be reachable by a plain GET.
+ALLOWED_STATIC_FILES = {
+    "/",
+    "/index.html",
+    "/products.html",
+    "/blog.html",
+    "/login.html",
+    "/admin.html",
+    "/orders.html",
+    "/account.html",
+    "/add-product.html",
+    "/create-post.html",
+    "/manage-products.html",
+}
+ALLOWED_STATIC_PREFIXES = ("/assets/",)
+
+
+def is_allowed_static_path(path):
+    normalized = posixpath.normpath(path)
+    if normalized in ALLOWED_STATIC_FILES:
+        return True
+    return any(normalized.startswith(prefix) for prefix in ALLOWED_STATIC_PREFIXES)
+
+# Cart snapshot for each PayPal order awaiting capture: paypal_order_id -> list
+# of {"productId", "productName", "quantity", "unitPrice"}. In-memory only —
+# this is a local dev server, and carts are short-lived between create and
+# capture (typically seconds).
+PENDING_CARTS = {}
+PENDING_CARTS_LOCK = threading.Lock()
 
 PAYPAL_API_BASE = {
     "sandbox": "https://api-m.sandbox.paypal.com",
@@ -160,6 +207,7 @@ def row_to_order(row):
         "payerName": row["payer_name"],
         "paypalOrderId": row["paypal_order_id"],
         "status": row["status"],
+        "fulfillmentStatus": row["fulfillment_status"],
         "createdAt": row["created_at"],
     }
 
@@ -305,14 +353,39 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_post(row))
 
+        if not is_allowed_static_path(path):
+            return self._send_json({"error": "Not found"}, 404)
+
         return super().do_GET()
 
     # ---------- POST ----------
     def do_POST(self):
         path = urlparse(self.path).path
+
+        # --- Upload a product image (raw bytes body, not JSON) ---
+        if path == "/api/upload":
+            if not self._require_auth():
+                return
+            content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            ext = UPLOAD_CONTENT_TYPES.get(content_type)
+            if not ext:
+                return self._send_json(
+                    {"error": "Unsupported image type. Use PNG, JPG, WEBP, or GIF."}, 400
+                )
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0:
+                return self._send_json({"error": "Empty upload"}, 400)
+            if length > MAX_UPLOAD_BYTES:
+                return self._send_json({"error": "Image too large (max 8MB)"}, 413)
+            body = self.rfile.read(length)
+            UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            filename = f"upload-{int(time.time() * 1000)}-{secrets.token_hex(4)}.{ext}"
+            (UPLOADS_DIR / filename).write_bytes(body)
+            return self._send_json({"path": f"assets/uploads/{filename}"}, 201)
+
         data = self._read_json()
 
-        # --- PayPal: create order (amount is always looked up server-side) ---
+        # --- PayPal: create order for a cart (amounts always looked up server-side) ---
         if path == "/api/paypal/orders":
             config = load_paypal_config()
             if not config["client_id"] or not config["secret"]:
@@ -320,15 +393,45 @@ class Handler(SimpleHTTPRequestHandler):
                     {"error": "PayPal is not configured yet. Add your Client ID and Secret to paypal_config.json."},
                     503,
                 )
+
+            cart_items = data.get("items")
+            if not isinstance(cart_items, list) or not cart_items:
+                return self._send_json({"error": "Cart is empty"}, 400)
+
             conn = get_db()
-            product = conn.execute(
-                "SELECT * FROM products WHERE id = ?", (data.get("productId"),)
-            ).fetchone()
+            line_items = []
+            total = 0.0
+            for entry in cart_items:
+                pid = entry.get("productId")
+                try:
+                    qty = int(entry.get("quantity", 1))
+                except (TypeError, ValueError):
+                    qty = 0
+                if qty < 1:
+                    conn.close()
+                    return self._send_json({"error": "Invalid quantity in cart"}, 400)
+                product = conn.execute(
+                    "SELECT * FROM products WHERE id = ?", (pid,)
+                ).fetchone()
+                if not product:
+                    conn.close()
+                    return self._send_json({"error": f"Product not found: {pid}"}, 404)
+                if product["status"] == "Sold Out":
+                    conn.close()
+                    return self._send_json(
+                        {"error": f"“{product['name']}” is sold out"}, 400
+                    )
+                unit_price = float(product["price"])
+                line_items.append(
+                    {
+                        "productId": product["id"],
+                        "productName": product["name"],
+                        "quantity": qty,
+                        "unitPrice": unit_price,
+                    }
+                )
+                total += unit_price * qty
             conn.close()
-            if not product:
-                return self._send_json({"error": "Product not found"}, 404)
-            if product["status"] == "Sold Out":
-                return self._send_json({"error": "This item is sold out"}, 400)
 
             try:
                 token = paypal_get_token(config)
@@ -341,12 +444,29 @@ class Handler(SimpleHTTPRequestHandler):
                         "intent": "CAPTURE",
                         "purchase_units": [
                             {
-                                "reference_id": product["id"],
-                                "description": product["name"][:127],
+                                "reference_id": "cart",
                                 "amount": {
                                     "currency_code": config["currency"],
-                                    "value": f"{product['price']:.2f}",
+                                    "value": f"{total:.2f}",
+                                    "breakdown": {
+                                        "item_total": {
+                                            "currency_code": config["currency"],
+                                            "value": f"{total:.2f}",
+                                        }
+                                    },
                                 },
+                                "items": [
+                                    {
+                                        "name": li["productName"][:127],
+                                        "sku": li["productId"],
+                                        "quantity": str(li["quantity"]),
+                                        "unit_amount": {
+                                            "currency_code": config["currency"],
+                                            "value": f"{li['unitPrice']:.2f}",
+                                        },
+                                    }
+                                    for li in line_items
+                                ],
                             }
                         ],
                     },
@@ -357,6 +477,9 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:
                 print(f"PayPal create-order error: {e}")
                 return self._send_json({"error": "PayPal order creation failed"}, 502)
+
+            with PENDING_CARTS_LOCK:
+                PENDING_CARTS[order["id"]] = line_items
 
             return self._send_json({"id": order["id"]}, 201)
 
@@ -380,10 +503,6 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Payment could not be captured"}, 502)
 
             status = capture.get("status", "UNKNOWN")
-            purchase_unit = (capture.get("purchase_units") or [{}])[0]
-            product_id = purchase_unit.get("reference_id")
-            captures = (purchase_unit.get("payments") or {}).get("captures") or [{}]
-            amount_info = captures[0].get("amount", {})
             payer = capture.get("payer", {})
             payer_name = " ".join(
                 filter(None, [
@@ -391,34 +510,54 @@ class Handler(SimpleHTTPRequestHandler):
                     (payer.get("name") or {}).get("surname"),
                 ])
             ) or None
+            payer_email = payer.get("email_address")
+
+            with PENDING_CARTS_LOCK:
+                line_items = PENDING_CARTS.pop(order_id, None)
+
+            if not line_items:
+                # Server restarted between create and capture, or a stale/unknown
+                # order id — fall back to a single record from PayPal's own total
+                # so the payment is never silently lost from order history.
+                purchase_unit = (capture.get("purchase_units") or [{}])[0]
+                captures = (purchase_unit.get("payments") or {}).get("captures") or [{}]
+                amount_info = captures[0].get("amount", {})
+                line_items = [
+                    {
+                        "productId": None,
+                        "productName": "Cart order",
+                        "quantity": 1,
+                        "unitPrice": float(amount_info.get("value", 0) or 0),
+                    }
+                ]
 
             conn = get_db()
-            product = conn.execute(
-                "SELECT * FROM products WHERE id = ?", (product_id,)
-            ).fetchone()
             now = int(time.time() * 1000)
-            order_row_id = f"order-{now}"
-            conn.execute(
-                """INSERT INTO orders
-                   (id, product_id, product_name, amount, currency, payer_email, payer_name, paypal_order_id, status, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    order_row_id,
-                    product_id,
-                    product["name"] if product else None,
-                    float(amount_info.get("value", 0) or 0),
-                    amount_info.get("currency_code", config["currency"]),
-                    payer.get("email_address"),
-                    payer_name,
-                    order_id,
-                    status,
-                    now,
-                ),
-            )
+            order_row_ids = []
+            for idx, li in enumerate(line_items):
+                order_row_id = f"order-{now}-{idx}"
+                order_row_ids.append(order_row_id)
+                conn.execute(
+                    """INSERT INTO orders
+                       (id, product_id, product_name, amount, currency, payer_email, payer_name, paypal_order_id, status, created_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        order_row_id,
+                        li["productId"],
+                        li["productName"],
+                        li["unitPrice"] * li["quantity"],
+                        config["currency"],
+                        payer_email,
+                        payer_name,
+                        order_id,
+                        status,
+                        now,
+                    ),
+                )
             conn.commit()
             conn.close()
 
-            return self._send_json({"status": status, "orderId": order_row_id})
+            return self._send_json({"status": status, "orderIds": order_row_ids})
 
         # --- Login ---
         if path == "/api/login":
@@ -648,6 +787,31 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json(row_to_post(row))
 
+        if path.startswith("/api/orders/"):
+            if not self._require_auth():
+                return
+            oid = path.split("/api/orders/", 1)[1]
+            new_status = data.get("fulfillmentStatus")
+            if new_status not in FULFILLMENT_STATUSES:
+                return self._send_json(
+                    {"error": f"fulfillmentStatus must be one of {sorted(FULFILLMENT_STATUSES)}"},
+                    400,
+                )
+            conn = get_db()
+            existing = conn.execute(
+                "SELECT id FROM orders WHERE id = ?", (oid,)
+            ).fetchone()
+            if not existing:
+                conn.close()
+                return self._send_json({"error": "Not found"}, 404)
+            conn.execute(
+                "UPDATE orders SET fulfillment_status = ? WHERE id = ?", (new_status, oid)
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM orders WHERE id = ?", (oid,)).fetchone()
+            conn.close()
+            return self._send_json(row_to_order(row))
+
         self._send_json({"error": "Not found"}, 404)
 
     # ---------- DELETE ----------
@@ -670,6 +834,16 @@ class Handler(SimpleHTTPRequestHandler):
             pid = path.split("/api/posts/", 1)[1]
             conn = get_db()
             conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"ok": True})
+
+        if path.startswith("/api/orders/"):
+            if not self._require_auth():
+                return
+            oid = path.split("/api/orders/", 1)[1]
+            conn = get_db()
+            conn.execute("DELETE FROM orders WHERE id = ?", (oid,))
             conn.commit()
             conn.close()
             return self._send_json({"ok": True})
@@ -719,6 +893,11 @@ def main():
             created_at INTEGER NOT NULL
         )"""
     )
+    order_cols = [r[1] for r in conn.execute("PRAGMA table_info(orders)").fetchall()]
+    if "fulfillment_status" not in order_cols:
+        conn.execute(
+            "ALTER TABLE orders ADD COLUMN fulfillment_status TEXT NOT NULL DEFAULT 'Pending'"
+        )
     conn.commit()
     conn.close()
 

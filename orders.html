@@ -75,6 +75,23 @@
     .status-pill.COMPLETED { background: rgba(0,180,100,0.15); color: #5ddea0; }
     .status-pill.other { background: rgba(255,180,0,0.12); color: #ffcf5c; }
 
+    .fulfillment-select {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.82rem; font-family: inherit;
+      cursor: pointer;
+    }
+    .fulfillment-select.Pending { border-color: #ffcf5c; color: #ffcf5c; }
+    .fulfillment-select.Shipped { border-color: var(--cyan); color: var(--cyan); }
+    .fulfillment-select.Delivered { border-color: #5ddea0; color: #5ddea0; }
+    .fulfillment-select.Cancelled { border-color: #ff6b6b; color: #ff6b6b; }
+
+    .btn-delete {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.78rem; cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
     .empty-state {
       text-align: center; padding: 3rem 1.5rem;
       background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
@@ -158,6 +175,8 @@
         return;
       }
 
+      const FULFILLMENT_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+
       wrap.innerHTML = `
         <table>
           <thead>
@@ -166,25 +185,57 @@
               <th>Product</th>
               <th>Amount</th>
               <th>Payer</th>
-              <th>Status</th>
+              <th>Payment</th>
+              <th>Fulfillment</th>
               <th>PayPal Order ID</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             ${orders.map(o => `
-              <tr>
+              <tr data-order-id="${o.id}">
                 <td data-label="Date">${formatDate(o.createdAt)}</td>
                 <td data-label="Product">${o.productName || o.productId || '—'}</td>
                 <td data-label="Amount">${formatMoney(o.amount, o.currency)}</td>
                 <td data-label="Payer">${o.payerName || ''}${o.payerEmail ? ' (' + o.payerEmail + ')' : ''}</td>
-                <td data-label="Status"><span class="status-pill ${o.status === 'COMPLETED' ? 'COMPLETED' : 'other'}">${o.status}</span></td>
+                <td data-label="Payment"><span class="status-pill ${o.status === 'COMPLETED' ? 'COMPLETED' : 'other'}">${o.status}</span></td>
+                <td data-label="Fulfillment">
+                  <select class="fulfillment-select ${o.fulfillmentStatus || 'Pending'}" onchange="handleStatusChange('${o.id}', this)">
+                    ${FULFILLMENT_STATUSES.map(s => `<option value="${s}" ${s === (o.fulfillmentStatus || 'Pending') ? 'selected' : ''}>${s}</option>`).join('')}
+                  </select>
+                </td>
                 <td data-label="PayPal ID">${o.paypalOrderId || ''}</td>
+                <td data-label=""><button class="btn-delete" onclick="handleDelete('${o.id}')">Delete</button></td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       `;
     })();
+
+    window.handleStatusChange = async function (id, selectEl) {
+      const newStatus = selectEl.value;
+      selectEl.disabled = true;
+      try {
+        await RabitholeDB.updateOrderStatus(id, newStatus);
+        selectEl.className = 'fulfillment-select ' + newStatus;
+      } catch (err) {
+        alert('Could not update order: ' + err.message);
+      } finally {
+        selectEl.disabled = false;
+      }
+    };
+
+    window.handleDelete = async function (id) {
+      if (!confirm('Delete this order? This cannot be undone.')) return;
+      try {
+        await RabitholeDB.deleteOrder(id);
+        const row = document.querySelector(`tr[data-order-id="${id}"]`);
+        if (row) row.remove();
+      } catch (err) {
+        alert('Could not delete order: ' + err.message);
+      }
+    };
   </script>
 </body>
 </html>

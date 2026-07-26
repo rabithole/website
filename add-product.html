@@ -102,7 +102,7 @@
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
     .image-options {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-top: 0.5rem;
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin-top: 0.5rem;
     }
     .image-option {
       border: 2px solid var(--border); border-radius: 8px; overflow: hidden;
@@ -116,6 +116,13 @@
       border-radius: 50%; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
       font-weight: 700;
     }
+    .image-option-upload {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); border-style: dashed;
+    }
+    .image-option-upload:hover { border-color: var(--cyan); }
+    #uploadPlaceholder { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 0.4rem; }
+    .image-option-upload.uploading { opacity: 0.6; pointer-events: none; }
 
     .actions {
       display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center;
@@ -227,7 +234,7 @@
         </div>
 
         <div class="form-group">
-          <label>Product Image <span class="optional">(choose one)</span></label>
+          <label>Product Image <span class="optional">(choose one, or upload your own)</span></label>
           <div class="image-options" id="imageOptions">
             <div class="image-option selected" data-src="assets/suspension.png">
               <img src="assets/suspension.png" alt="Suspension">
@@ -241,13 +248,20 @@
             <div class="image-option" data-src="assets/logo.png">
               <img src="assets/logo.png" alt="Logo">
             </div>
+            <div class="image-option image-option-upload" id="uploadOption">
+              <img id="uploadPreview" style="display:none;">
+              <span id="uploadPlaceholder">+ Upload</span>
+            </div>
           </div>
+          <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB.</div>
+          <div id="uploadStatus" class="hint"></div>
           <input type="hidden" id="image" name="image" value="assets/suspension.png">
         </div>
 
         <div class="actions">
           <button type="submit" class="btn btn-primary" id="submitBtn">Publish Product</button>
-          <a href="products.html" class="btn btn-secondary">Cancel</a>
+          <a href="manage-products.html" class="btn btn-secondary">Cancel</a>
         </div>
 
         <div id="statusMsg" class="status"></div>
@@ -313,13 +327,62 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
 
-    // Image selection
-    document.querySelectorAll('.image-option').forEach(el => {
+    // Image selection — preset thumbnails
+    document.querySelectorAll('.image-option[data-src]').forEach(el => {
       el.addEventListener('click', () => {
         document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
         el.classList.add('selected');
         document.getElementById('image').value = el.dataset.src;
       });
+    });
+
+    // Image selection — upload your own
+    const uploadOption = document.getElementById('uploadOption');
+    const uploadPreview = document.getElementById('uploadPreview');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const imageFileInput = document.getElementById('imageFileInput');
+
+    uploadOption.addEventListener('click', () => imageFileInput.click());
+
+    imageFileInput.addEventListener('change', async () => {
+      const file = imageFileInput.files[0];
+      if (!file) return;
+
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(file.type)) {
+        uploadStatus.textContent = 'Unsupported file type. Use PNG, JPG, WEBP, or GIF.';
+        imageFileInput.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        uploadStatus.textContent = 'Image is too large (max 8MB).';
+        imageFileInput.value = '';
+        return;
+      }
+      if (!window.RabitholeDB) {
+        uploadStatus.textContent = 'Uploading requires the database server to be running.';
+        imageFileInput.value = '';
+        return;
+      }
+
+      uploadStatus.textContent = 'Uploading…';
+      uploadOption.classList.add('uploading');
+      try {
+        const result = await RabitholeDB.uploadImage(file);
+        document.getElementById('image').value = result.path;
+        uploadPreview.src = result.path;
+        uploadPreview.style.display = 'block';
+        uploadPlaceholder.style.display = 'none';
+        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
+        uploadOption.classList.add('selected');
+        uploadStatus.textContent = 'Uploaded.';
+      } catch (err) {
+        uploadStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
+        imageFileInput.value = '';
+      } finally {
+        uploadOption.classList.remove('uploading');
+      }
     });
 
     // Edit mode
@@ -345,9 +408,15 @@
         document.getElementById('status').value = editing.status;
         document.getElementById('description').value = editing.description;
         document.getElementById('image').value = editing.image;
-        document.querySelectorAll('.image-option').forEach(o => {
-          o.classList.toggle('selected', o.dataset.src === editing.image);
-        });
+        const presets = document.querySelectorAll('.image-option[data-src]');
+        const matchesPreset = Array.from(presets).some(o => o.dataset.src === editing.image);
+        presets.forEach(o => o.classList.toggle('selected', o.dataset.src === editing.image));
+        if (!matchesPreset) {
+          uploadPreview.src = editing.image;
+          uploadPreview.style.display = 'block';
+          uploadPlaceholder.style.display = 'none';
+          uploadOption.classList.add('selected');
+        }
       }
     })();
 

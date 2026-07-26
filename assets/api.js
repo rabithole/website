@@ -89,6 +89,21 @@
     return product;
   }
 
+  async function uploadImage(file) {
+    const token = sessionStorage.getItem('rabithole_token');
+    const headers = { 'Content-Type': file.type };
+    if (token && token !== 'local-fallback') {
+      headers['Authorization'] = 'Bearer ' + token;
+    }
+    const r = await fetch(API_BASE + '/api/upload', {
+      method: 'POST',
+      headers,
+      body: file,
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Upload failed');
+    return r.json();
+  }
+
   async function deleteProduct(id) {
     if (await probeApi()) {
       const r = await fetch(API_BASE + '/api/products/' + encodeURIComponent(id), {
@@ -221,11 +236,11 @@
     return r.json();
   }
 
-  async function createPaypalOrder(productId) {
+  async function createCartOrder(items) {
     const r = await fetch(API_BASE + '/api/paypal/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId }),
+      body: JSON.stringify({ items }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not start checkout');
     return r.json();
@@ -245,10 +260,30 @@
     return r.json();
   }
 
+  async function updateOrderStatus(id, fulfillmentStatus) {
+    const r = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ fulfillmentStatus }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not update order');
+    return r.json();
+  }
+
+  async function deleteOrder(id) {
+    const r = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not delete order');
+    return true;
+  }
+
   global.RabitholeDB = {
     getProducts,
     getProduct,
     saveProduct,
+    uploadImage,
     deleteProduct,
     getPosts,
     getPost,
@@ -261,8 +296,10 @@
     storageMode,
     probeApi,
     getPaypalConfig,
-    createPaypalOrder,
+    createCartOrder,
     capturePaypalOrder,
     getOrders,
+    updateOrderStatus,
+    deleteOrder,
   };
 })(window);

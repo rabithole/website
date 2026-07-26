@@ -4,6 +4,9 @@ paypal_config.json
 # Database — user accounts, password hashes, order/customer data
 db/
 
+# User-uploaded product images — runtime content, not source assets
+assets/uploads/
+
 # Python bytecode cache
 __pycache__/
 *.pyc

@@ -190,14 +190,18 @@
       background: transparent; color: var(--text); border: 1.5px solid var(--border);
     }
     .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
-    .btn-danger {
-      background: transparent; color: #ff8a8a; border: 1px solid rgba(255,100,100,0.35);
-      font-size: 0.85rem; padding: 0.55rem 0.95rem;
-    }
-    .btn-danger:hover { background: rgba(220,60,60,0.12); }
 
     .checkout-box { margin-top: 1.4rem; max-width: 320px; }
-    #paypal-button-container { min-height: 45px; }
+    .qty-selector {
+      display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.9rem;
+    }
+    .qty-selector label { font-size: 0.85rem; color: var(--text-muted); }
+    .qty-btn-lg {
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); cursor: pointer; font-size: 1rem; line-height: 1;
+    }
+    .qty-btn-lg:hover { border-color: var(--orange); color: var(--orange); }
+    #qtyValue { min-width: 1.5rem; text-align: center; font-weight: 600; }
     .checkout-msg {
       margin-top: 0.9rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.88rem;
     }
@@ -268,6 +272,7 @@
   </div>
 
   <script src="assets/api.js"></script>
+  <script src="assets/cart.js"></script>
   <script>
     // STORAGE_KEY kept for legacy fallback only
     const STORAGE_KEY = 'rabithole_products';
@@ -279,13 +284,6 @@
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
       catch { return []; }
     }
-
-    async function removeProduct(id) {
-      if (window.RabitholeDB) return RabitholeDB.deleteProduct(id);
-      const list = (await loadProducts()).filter(p => p.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    }
-
 
     function ensureSeedProducts() {
       if (localStorage.getItem(STORAGE_KEY)) return;
@@ -406,11 +404,15 @@
           <div class="detail-desc">${escapeHtml(p.description)}</div>
           <div class="actions-bar">
             <a href="mailto:hello@rabithole.com?subject=Inquiry:%20${encodeURIComponent(p.name)}" class="btn btn-secondary" id="inquireBtn">Questions? Email us</a>
-            <a href="add-product.html?id=${p.id}" class="btn btn-secondary" id="editBtn">Edit</a>
-            <button class="btn btn-danger" id="deleteBtn" onclick="deleteProduct('${p.id}')">Delete</button>
           </div>
           <div class="checkout-box" id="checkoutBox">
-            <div id="paypal-button-container"></div>
+            <div class="qty-selector" id="qtySelector">
+              <label>Qty</label>
+              <button type="button" class="qty-btn-lg" id="qtyDecBtn">−</button>
+              <span id="qtyValue">1</span>
+              <button type="button" class="qty-btn-lg" id="qtyIncBtn">+</button>
+            </div>
+            <button class="btn btn-primary" id="addToCartBtn">Add to Cart</button>
             <div id="checkoutMsg"></div>
           </div>
         </div>
@@ -421,21 +423,7 @@
       renderCheckout(p);
     }
 
-    // ---- PayPal checkout ----
-    let paypalSdkPromise = null;
-
-    function loadPaypalSdk(clientId, currency) {
-      if (paypalSdkPromise) return paypalSdkPromise;
-      paypalSdkPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
-        script.onload = () => resolve(window.paypal);
-        script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
-        document.head.appendChild(script);
-      });
-      return paypalSdkPromise;
-    }
-
+    // ---- Add to cart ----
     function showCheckoutMsg(type, text) {
       const el = document.getElementById('checkoutMsg');
       if (!el) return;
@@ -443,60 +431,38 @@
       el.textContent = text;
     }
 
-    async function renderCheckout(product) {
-      const container = document.getElementById('paypal-button-container');
-      if (!container) return;
+    function renderCheckout(product) {
+      const qtySelector = document.getElementById('qtySelector');
+      const addBtn = document.getElementById('addToCartBtn');
+      if (!addBtn) return;
 
       if (product.status === 'Sold Out') {
+        qtySelector.style.display = 'none';
+        addBtn.style.display = 'none';
         showCheckoutMsg('info', 'This item is currently sold out.');
         return;
       }
-      if (!window.RabitholeDB) {
+      if (!window.RabitholeCart) {
+        qtySelector.style.display = 'none';
+        addBtn.style.display = 'none';
         showCheckoutMsg('info', 'Online checkout requires the database server to be running.');
         return;
       }
 
-      const config = await RabitholeDB.getPaypalConfig();
-      if (!config.configured || !config.clientId) {
-        showCheckoutMsg('info', 'Online payment isn’t set up yet — email to inquire about this part.');
-        return;
-      }
-
-      try {
-        const paypal = await loadPaypalSdk(config.clientId, config.currency);
-        paypal.Buttons({
-          style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
-          createOrder: async () => {
-            showCheckoutMsg('info', '');
-            const order = await RabitholeDB.createPaypalOrder(product.id);
-            return order.id;
-          },
-          onApprove: async (data) => {
-            showCheckoutMsg('info', 'Finishing up your payment…');
-            try {
-              const result = await RabitholeDB.capturePaypalOrder(data.orderID);
-              if (result.status === 'COMPLETED') {
-                container.style.display = 'none';
-                showCheckoutMsg('success', `Payment successful! Order ${result.orderId}. A receipt was sent by PayPal to your email.`);
-              } else {
-                showCheckoutMsg('error', `Payment status: ${result.status}. Contact hello@rabithole.com if this seems wrong.`);
-              }
-            } catch (err) {
-              showCheckoutMsg('error', err.message || 'Payment could not be completed.');
-            }
-          },
-          onError: (err) => {
-            showCheckoutMsg('error', 'PayPal checkout error. Please try again or email hello@rabithole.com.');
-            console.error('PayPal error:', err);
-          },
-          onCancel: () => {
-            showCheckoutMsg('info', 'Checkout cancelled.');
-          },
-        }).render('#paypal-button-container');
-      } catch (err) {
-        showCheckoutMsg('error', 'Could not load PayPal checkout.');
-        console.error(err);
-      }
+      let qty = 1;
+      const qtyValueEl = document.getElementById('qtyValue');
+      document.getElementById('qtyDecBtn').onclick = () => {
+        qty = Math.max(1, qty - 1);
+        qtyValueEl.textContent = qty;
+      };
+      document.getElementById('qtyIncBtn').onclick = () => {
+        qty += 1;
+        qtyValueEl.textContent = qty;
+      };
+      addBtn.onclick = () => {
+        RabitholeCart.add(product.id, qty);
+        showCheckoutMsg('success', `Added ${qty} × ${product.name} to your cart.`);
+      };
     }
 
     function showList() {
@@ -504,12 +470,6 @@
       document.getElementById('detailView').style.display = 'none';
       history.replaceState(null, '', window.location.pathname);
       renderList();
-    }
-
-    async function deleteProduct(id) {
-      if (!confirm('Delete this product permanently?')) return;
-      await removeProduct(id);
-      showList();
     }
 
     // Filters
@@ -542,18 +502,6 @@
       const navLink = document.getElementById('navAdminLink');
       if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
     }
-
-    // Patch showDetail to only show edit/delete for owner
-    const _origShowDetail = showDetail;
-    showDetail = async function(id) {
-      await _origShowDetail(id);
-      if (!isOwner) {
-        const editBtn = document.getElementById('editBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-        if (editBtn) editBtn.remove();
-        if (deleteBtn) deleteBtn.remove();
-      }
-    };
 
   </script>
 </body>
