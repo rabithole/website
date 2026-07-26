@@ -20,9 +20,14 @@ API:
     POST /api/paypal/orders               {items: [{productId, quantity}]}  -> create PayPal order for a cart
                                            (requests the buyer's shipping address on file)
     POST /api/paypal/orders/<id>/capture  -> capture an approved order
-    GET  /api/orders                      (Authorization: Bearer <token>) owner order history
-    PUT  /api/orders/<id>                  (Authorization: Bearer <token>) update fulfillment status
-    DELETE /api/orders/<id>                (Authorization: Bearer <token>) delete an order record
+    GET  /api/orders                                  (Authorization: Bearer <token>) owner order
+                                                       history, grouped by PayPal order — one entry
+                                                       per shipment/checkout, with an "items" array
+    PUT  /api/orders/group/<paypalOrderId>            (Authorization: Bearer <token>) update
+                                                       fulfillment status and/or tracking number for
+                                                       every line item in that order (they ship together)
+    DELETE /api/orders/group/<paypalOrderId>          (Authorization: Bearer <token>) delete every
+                                                       line item belonging to that order
     POST /api/upload                      (Authorization: Bearer <token>) upload a product image
                                            (raw image bytes as the body, Content-Type: image/png|jpeg|webp|gif)
 
@@ -222,30 +227,51 @@ def row_to_user(row):
     }
 
 
-def row_to_order(row):
-    return {
-        "id": row["id"],
-        "productId": row["product_id"],
-        "productName": row["product_name"],
-        "amount": row["amount"],
-        "currency": row["currency"],
-        "payerEmail": row["payer_email"],
-        "payerName": row["payer_name"],
-        "paypalOrderId": row["paypal_order_id"],
-        "status": row["status"],
-        "fulfillmentStatus": row["fulfillment_status"],
-        "createdAt": row["created_at"],
-        "shipping": {
-            "name": row["shipping_name"],
-            "addressLine1": row["shipping_address_line1"],
-            "addressLine2": row["shipping_address_line2"],
-            "city": row["shipping_city"],
-            "state": row["shipping_state"],
-            "postalCode": row["shipping_postal_code"],
-            "country": row["shipping_country"],
-        },
-        "productShippingInfo": row["product_shipping_info"],
-    }
+def group_orders(rows):
+    """Collapse one-row-per-line-item order rows into one entry per PayPal
+    order (i.e. per checkout/shipment), each carrying an "items" array.
+    Shipping address, fulfillment status, and tracking number live on the
+    shipment as a whole, not per line item — they physically ship together."""
+    orders_by_paypal_id = {}
+    ordered = []
+    for row in rows:
+        pid = row["paypal_order_id"]
+        entry = orders_by_paypal_id.get(pid)
+        if entry is None:
+            entry = {
+                "paypalOrderId": pid,
+                "createdAt": row["created_at"],
+                "currency": row["currency"],
+                "payerEmail": row["payer_email"],
+                "payerName": row["payer_name"],
+                "status": row["status"],
+                "fulfillmentStatus": row["fulfillment_status"],
+                "trackingNumber": row["tracking_number"],
+                "shipping": {
+                    "name": row["shipping_name"],
+                    "addressLine1": row["shipping_address_line1"],
+                    "addressLine2": row["shipping_address_line2"],
+                    "city": row["shipping_city"],
+                    "state": row["shipping_state"],
+                    "postalCode": row["shipping_postal_code"],
+                    "country": row["shipping_country"],
+                },
+                "totalAmount": 0.0,
+                "items": [],
+            }
+            orders_by_paypal_id[pid] = entry
+            ordered.append(entry)
+        entry["totalAmount"] += row["amount"] or 0
+        entry["items"].append(
+            {
+                "id": row["id"],
+                "productId": row["product_id"],
+                "productName": row["product_name"],
+                "amount": row["amount"],
+                "productShippingInfo": row["product_shipping_info"],
+            }
+        )
+    return ordered
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -349,7 +375,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "SELECT * FROM orders ORDER BY created_at DESC"
             ).fetchall()
             conn.close()
-            return self._send_json([row_to_order(r) for r in rows])
+            return self._send_json(group_orders(rows))
 
         if path == "/api/products":
             conn = get_db()
@@ -929,30 +955,44 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json(row_to_project(row))
 
-        if path.startswith("/api/orders/"):
+        if path.startswith("/api/orders/group/"):
             if not self._require_auth():
                 return
-            oid = path.split("/api/orders/", 1)[1]
-            new_status = data.get("fulfillmentStatus")
-            if new_status not in FULFILLMENT_STATUSES:
+            paypal_order_id = path.split("/api/orders/group/", 1)[1]
+            has_status = "fulfillmentStatus" in data
+            has_tracking = "trackingNumber" in data
+            if not has_status and not has_tracking:
+                return self._send_json(
+                    {"error": "Provide fulfillmentStatus and/or trackingNumber"}, 400
+                )
+            if has_status and data["fulfillmentStatus"] not in FULFILLMENT_STATUSES:
                 return self._send_json(
                     {"error": f"fulfillmentStatus must be one of {sorted(FULFILLMENT_STATUSES)}"},
                     400,
                 )
             conn = get_db()
             existing = conn.execute(
-                "SELECT id FROM orders WHERE id = ?", (oid,)
+                "SELECT id FROM orders WHERE paypal_order_id = ?", (paypal_order_id,)
             ).fetchone()
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
-            conn.execute(
-                "UPDATE orders SET fulfillment_status = ? WHERE id = ?", (new_status, oid)
-            )
+            if has_status:
+                conn.execute(
+                    "UPDATE orders SET fulfillment_status = ? WHERE paypal_order_id = ?",
+                    (data["fulfillmentStatus"], paypal_order_id),
+                )
+            if has_tracking:
+                conn.execute(
+                    "UPDATE orders SET tracking_number = ? WHERE paypal_order_id = ?",
+                    (data["trackingNumber"].strip() or None, paypal_order_id),
+                )
             conn.commit()
-            row = conn.execute("SELECT * FROM orders WHERE id = ?", (oid,)).fetchone()
+            rows = conn.execute(
+                "SELECT * FROM orders WHERE paypal_order_id = ?", (paypal_order_id,)
+            ).fetchall()
             conn.close()
-            return self._send_json(row_to_order(row))
+            return self._send_json(group_orders(rows)[0])
 
         self._send_json({"error": "Not found"}, 404)
 
@@ -990,12 +1030,12 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json({"ok": True})
 
-        if path.startswith("/api/orders/"):
+        if path.startswith("/api/orders/group/"):
             if not self._require_auth():
                 return
-            oid = path.split("/api/orders/", 1)[1]
+            paypal_order_id = path.split("/api/orders/group/", 1)[1]
             conn = get_db()
-            conn.execute("DELETE FROM orders WHERE id = ?", (oid,))
+            conn.execute("DELETE FROM orders WHERE paypal_order_id = ?", (paypal_order_id,))
             conn.commit()
             conn.close()
             return self._send_json({"ok": True})
@@ -1059,6 +1099,8 @@ def main():
         conn.execute("ALTER TABLE orders ADD COLUMN shipping_postal_code TEXT")
         conn.execute("ALTER TABLE orders ADD COLUMN shipping_country TEXT")
         conn.execute("ALTER TABLE orders ADD COLUMN product_shipping_info TEXT")
+    if "tracking_number" not in order_cols:
+        conn.execute("ALTER TABLE orders ADD COLUMN tracking_number TEXT")
     product_cols = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
     if "shipping_info" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN shipping_info TEXT")

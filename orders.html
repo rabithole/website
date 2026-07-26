@@ -34,7 +34,7 @@
       position: sticky; top: 0; z-index: 50;
     }
     .nav-inner {
-      max-width: 1000px; margin: 0 auto;
+      max-width: 1100px; margin: 0 auto;
       display: flex; align-items: center; justify-content: space-between;
     }
     .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
@@ -45,7 +45,7 @@
     .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
     .nav-links a:hover { color: var(--orange); }
 
-    .container { max-width: 1000px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
     .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
     .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
 
@@ -64,7 +64,7 @@
     }
     th, td {
       text-align: left; padding: 0.75rem 1rem; font-size: 0.88rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border); vertical-align: middle;
     }
     th { color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3px; }
     tr:last-child td { border-bottom: none; }
@@ -86,12 +86,21 @@
     .fulfillment-select.Delivered { border-color: #5ddea0; color: #5ddea0; }
     .fulfillment-select.Cancelled { border-color: #ff6b6b; color: #ff6b6b; }
 
-    .btn-delete {
+    .btn-delete, .btn-view {
       background: transparent; border: 1px solid var(--border); color: var(--text-muted);
       border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.78rem; cursor: pointer;
-      font-family: inherit;
+      font-family: inherit; text-decoration: none; display: inline-block;
     }
     .btn-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
+    .btn-view:hover { border-color: var(--cyan); color: var(--cyan); }
+    .row-actions { display: flex; gap: 0.5rem; }
+
+    .tracking-input {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.82rem; font-family: inherit;
+      width: 130px;
+    }
+    .tracking-input:focus { border-color: var(--orange); outline: none; }
 
     .empty-state {
       text-align: center; padding: 3rem 1.5rem;
@@ -99,8 +108,31 @@
       color: var(--text-muted);
     }
 
+    /* Detail view */
+    #orderView { display: none; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      color: var(--text-muted); background: none; border: none; cursor: pointer;
+      font-size: 0.9rem; font-family: inherit; margin-bottom: 1.3rem; padding: 0;
+    }
+    .back-btn:hover { color: var(--orange); }
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem;
+    }
+    .detail-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.3rem 1.4rem;
+    }
+    .detail-card h3 { font-size: 0.95rem; margin-bottom: 0.7rem; }
+    .detail-card .address-line { font-size: 0.92rem; color: var(--text); line-height: 1.7; }
+    .detail-controls { display: flex; flex-direction: column; gap: 0.9rem; }
+    .detail-controls label { font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem; }
+    .items-table td, .items-table th { padding: 0.65rem 1rem; }
+    .order-actions { margin-top: 1.3rem; }
+
     @media (max-width: 640px) {
       .stats { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: 1fr; }
       table, thead, tbody, th, td, tr { display: block; }
       thead { display: none; }
       tr { border-bottom: 1px solid var(--border); padding: 0.6rem 0; }
@@ -124,16 +156,25 @@
   </nav>
 
   <div class="container">
-    <h1 class="page-title">Orders</h1>
-    <p class="page-sub">PayPal purchases made through the shop.</p>
+    <!-- LIST -->
+    <div id="listView">
+      <h1 class="page-title">Orders</h1>
+      <p class="page-sub">PayPal purchases made through the shop. Each row is one checkout — items bought together ship together.</p>
 
-    <div class="stats">
-      <div class="stat"><div class="num" id="orderCount">—</div><div class="label">Orders</div></div>
-      <div class="stat"><div class="num" id="totalRevenue">—</div><div class="label">Total Revenue</div></div>
-      <div class="stat"><div class="num" id="lastOrder">—</div><div class="label">Most Recent</div></div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="orderCount">—</div><div class="label">Orders</div></div>
+        <div class="stat"><div class="num" id="totalRevenue">—</div><div class="label">Total Revenue</div></div>
+        <div class="stat"><div class="num" id="lastOrder">—</div><div class="label">Most Recent</div></div>
+      </div>
+
+      <div id="ordersTableWrap"></div>
     </div>
 
-    <div id="ordersTableWrap"></div>
+    <!-- DETAIL -->
+    <div id="orderView">
+      <button class="back-btn" id="backBtn">← Back to all orders</button>
+      <div id="orderDetail"></div>
+    </div>
   </div>
 
   <script src="assets/api.js"></script>
@@ -141,6 +182,9 @@
     if (sessionStorage.getItem('rabithole_auth') !== '1') {
       window.location.href = 'login.html';
     }
+
+    const FULFILLMENT_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+    let ORDERS = [];
 
     function formatMoney(n, currency) {
       return (currency === 'USD' || !currency ? '$' : currency + ' ') + Number(n || 0).toFixed(2);
@@ -150,44 +194,62 @@
       return new Date(ts).toLocaleString();
     }
 
-    (async function load() {
+    function shippingLines(o) {
+      const s = o.shipping || {};
+      return [
+        s.name,
+        s.addressLine1,
+        s.addressLine2,
+        [s.city, s.state, s.postalCode].filter(Boolean).join(', '),
+        s.country,
+      ].filter(Boolean);
+    }
+
+    function shippingSummary(o) {
+      const lines = shippingLines(o);
+      if (!lines.length) return '<span class="hint">No address on file</span>';
+      const s = o.shipping || {};
+      return [s.city, s.state].filter(Boolean).join(', ') || lines[0];
+    }
+
+    function itemsSummary(o) {
+      if (o.items.length === 1) return o.items[0].productName || o.items[0].productId || '—';
+      return `${o.items[0].productName || 'Item'} + ${o.items.length - 1} more`;
+    }
+
+    async function load() {
       const wrap = document.getElementById('ordersTableWrap');
       if (!window.RabitholeDB) {
         wrap.innerHTML = '<div class="empty-state">Orders require the database server to be running.</div>';
         return;
       }
-      let orders;
       try {
-        orders = await RabitholeDB.getOrders();
+        ORDERS = await RabitholeDB.getOrders();
       } catch (err) {
         wrap.innerHTML = `<div class="empty-state">Could not load orders: ${err.message}</div>`;
         return;
       }
 
-      document.getElementById('orderCount').textContent = orders.length;
-      const total = orders
+      document.getElementById('orderCount').textContent = ORDERS.length;
+      const total = ORDERS
         .filter(o => o.status === 'COMPLETED')
-        .reduce((sum, o) => sum + Number(o.amount || 0), 0);
-      document.getElementById('totalRevenue').textContent = formatMoney(total, orders[0] && orders[0].currency);
-      document.getElementById('lastOrder').textContent = orders.length ? formatDate(orders[0].createdAt).split(',')[0] : '—';
+        .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+      document.getElementById('totalRevenue').textContent = formatMoney(total, ORDERS[0] && ORDERS[0].currency);
+      document.getElementById('lastOrder').textContent = ORDERS.length ? formatDate(ORDERS[0].createdAt).split(',')[0] : '—';
 
-      if (orders.length === 0) {
+      renderList();
+
+      if (window.location.hash.startsWith('#order=')) {
+        const pid = decodeURIComponent(window.location.hash.slice(7));
+        if (ORDERS.some(o => o.paypalOrderId === pid)) showOrder(pid);
+      }
+    }
+
+    function renderList() {
+      const wrap = document.getElementById('ordersTableWrap');
+      if (ORDERS.length === 0) {
         wrap.innerHTML = '<div class="empty-state">No orders yet.</div>';
         return;
-      }
-
-      const FULFILLMENT_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
-
-      function formatShipping(o) {
-        const s = o.shipping || {};
-        const lines = [
-          s.name,
-          s.addressLine1,
-          s.addressLine2,
-          [s.city, s.state, s.postalCode].filter(Boolean).join(', '),
-          s.country,
-        ].filter(Boolean);
-        return lines.length ? lines.join('<br>') : '<span class="hint">No address on file</span>';
       }
 
       wrap.innerHTML = `
@@ -195,47 +257,128 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th>Product</th>
-              <th>Amount</th>
+              <th>Items</th>
+              <th>Total</th>
               <th>Payer</th>
               <th>Ship To</th>
               <th>Payment</th>
               <th>Fulfillment</th>
-              <th>PayPal Order ID</th>
+              <th>Tracking #</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            ${orders.map(o => `
-              <tr data-order-id="${o.id}">
+            ${ORDERS.map(o => `
+              <tr>
                 <td data-label="Date">${formatDate(o.createdAt)}</td>
-                <td data-label="Product">
-                  ${o.productName || o.productId || '—'}
-                  ${o.productShippingInfo ? `<br><span class="hint">${o.productShippingInfo}</span>` : ''}
-                </td>
-                <td data-label="Amount">${formatMoney(o.amount, o.currency)}</td>
+                <td data-label="Items">${itemsSummary(o)}</td>
+                <td data-label="Total">${formatMoney(o.totalAmount, o.currency)}</td>
                 <td data-label="Payer">${o.payerName || ''}${o.payerEmail ? ' (' + o.payerEmail + ')' : ''}</td>
-                <td data-label="Ship To">${formatShipping(o)}</td>
+                <td data-label="Ship To">${shippingSummary(o)}</td>
                 <td data-label="Payment"><span class="status-pill ${o.status === 'COMPLETED' ? 'COMPLETED' : 'other'}">${o.status}</span></td>
                 <td data-label="Fulfillment">
-                  <select class="fulfillment-select ${o.fulfillmentStatus || 'Pending'}" onchange="handleStatusChange('${o.id}', this)">
+                  <select class="fulfillment-select ${o.fulfillmentStatus || 'Pending'}" onchange="handleStatusChange('${o.paypalOrderId}', this)">
                     ${FULFILLMENT_STATUSES.map(s => `<option value="${s}" ${s === (o.fulfillmentStatus || 'Pending') ? 'selected' : ''}>${s}</option>`).join('')}
                   </select>
                 </td>
-                <td data-label="PayPal ID">${o.paypalOrderId || ''}</td>
-                <td data-label=""><button class="btn-delete" onclick="handleDelete('${o.id}')">Delete</button></td>
+                <td data-label="Tracking #">
+                  <input type="text" class="tracking-input" value="${o.trackingNumber || ''}" placeholder="Paste tracking #" onblur="handleTrackingChange('${o.paypalOrderId}', this)">
+                </td>
+                <td data-label="">
+                  <div class="row-actions">
+                    <button class="btn-view" onclick="showOrder('${o.paypalOrderId}')">View</button>
+                    <button class="btn-delete" onclick="handleDelete('${o.paypalOrderId}')">Delete</button>
+                  </div>
+                </td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       `;
-    })();
+    }
 
-    window.handleStatusChange = async function (id, selectEl) {
-      const newStatus = selectEl.value;
+    function showOrder(paypalOrderId) {
+      const o = ORDERS.find(x => x.paypalOrderId === paypalOrderId);
+      if (!o) return;
+
+      document.getElementById('listView').style.display = 'none';
+      document.getElementById('orderView').style.display = 'block';
+      history.replaceState(null, '', '#order=' + encodeURIComponent(paypalOrderId));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      const lines = shippingLines(o);
+
+      document.getElementById('orderDetail').innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h3>Ship To</h3>
+            <div class="address-line">${lines.length ? lines.join('<br>') : '<span class="hint">No address on file</span>'}</div>
+            <div class="hint" style="margin-top:0.8rem;">${o.payerName || ''}${o.payerEmail ? ' &middot; ' + o.payerEmail : ''}</div>
+          </div>
+          <div class="detail-card">
+            <h3>Fulfillment</h3>
+            <div class="detail-controls">
+              <div>
+                <label>Status</label>
+                <select class="fulfillment-select ${o.fulfillmentStatus || 'Pending'}" onchange="handleStatusChange('${o.paypalOrderId}', this)">
+                  ${FULFILLMENT_STATUSES.map(s => `<option value="${s}" ${s === (o.fulfillmentStatus || 'Pending') ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label>Tracking Number</label>
+                <input type="text" class="tracking-input" style="width:100%;" value="${o.trackingNumber || ''}" placeholder="Paste tracking #" onblur="handleTrackingChange('${o.paypalOrderId}', this)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${o.items.map(li => `
+              <tr>
+                <td data-label="Product">
+                  ${li.productName || li.productId || '—'}
+                  ${li.productShippingInfo ? `<br><span class="hint">${li.productShippingInfo}</span>` : ''}
+                </td>
+                <td data-label="Amount">${formatMoney(li.amount, o.currency)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="hint" style="margin-top:1rem;">
+          Payment status: <span class="status-pill ${o.status === 'COMPLETED' ? 'COMPLETED' : 'other'}">${o.status}</span>
+          &nbsp;·&nbsp; PayPal Order ID: ${o.paypalOrderId || ''}
+        </div>
+
+        <div class="order-actions">
+          <button class="btn-delete" onclick="handleDelete('${o.paypalOrderId}')">Delete Order</button>
+        </div>
+      `;
+    }
+
+    function showList() {
+      document.getElementById('listView').style.display = 'block';
+      document.getElementById('orderView').style.display = 'none';
+      history.replaceState(null, '', window.location.pathname);
+      renderList();
+    }
+
+    document.getElementById('backBtn').addEventListener('click', showList);
+
+    window.handleStatusChange = async function (paypalOrderId, selectEl) {
       selectEl.disabled = true;
+      const newStatus = selectEl.value;
       try {
-        await RabitholeDB.updateOrderStatus(id, newStatus);
+        await RabitholeDB.updateOrderStatus(paypalOrderId, newStatus);
+        const o = ORDERS.find(x => x.paypalOrderId === paypalOrderId);
+        if (o) o.fulfillmentStatus = newStatus;
         selectEl.className = 'fulfillment-select ' + newStatus;
       } catch (err) {
         alert('Could not update order: ' + err.message);
@@ -244,16 +387,34 @@
       }
     };
 
-    window.handleDelete = async function (id) {
-      if (!confirm('Delete this order? This cannot be undone.')) return;
+    window.handleTrackingChange = async function (paypalOrderId, inputEl) {
+      const value = inputEl.value.trim();
+      if (value === inputEl.defaultValue.trim()) return;
+      inputEl.disabled = true;
       try {
-        await RabitholeDB.deleteOrder(id);
-        const row = document.querySelector(`tr[data-order-id="${id}"]`);
-        if (row) row.remove();
+        await RabitholeDB.updateOrderTracking(paypalOrderId, value);
+        const o = ORDERS.find(x => x.paypalOrderId === paypalOrderId);
+        if (o) o.trackingNumber = value;
+        inputEl.defaultValue = value;
+      } catch (err) {
+        alert('Could not save tracking number: ' + err.message);
+      } finally {
+        inputEl.disabled = false;
+      }
+    };
+
+    window.handleDelete = async function (paypalOrderId) {
+      if (!confirm('Delete this entire order? This cannot be undone.')) return;
+      try {
+        await RabitholeDB.deleteOrder(paypalOrderId);
+        ORDERS = ORDERS.filter(o => o.paypalOrderId !== paypalOrderId);
+        showList();
       } catch (err) {
         alert('Could not delete order: ' + err.message);
       }
     };
+
+    load();
   </script>
 </body>
 </html>

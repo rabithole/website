@@ -324,8 +324,8 @@
     return r.json();
   }
 
-  async function updateOrderStatus(id, fulfillmentStatus) {
-    const r = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(id), {
+  async function updateOrderStatus(paypalOrderId, fulfillmentStatus) {
+    const r = await fetch(API_BASE + '/api/orders/group/' + encodeURIComponent(paypalOrderId), {
       method: 'PUT',
       headers: authHeaders(),
       body: JSON.stringify({ fulfillmentStatus }),
@@ -334,8 +334,18 @@
     return r.json();
   }
 
-  async function deleteOrder(id) {
-    const r = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(id), {
+  async function updateOrderTracking(paypalOrderId, trackingNumber) {
+    const r = await fetch(API_BASE + '/api/orders/group/' + encodeURIComponent(paypalOrderId), {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ trackingNumber }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not update order');
+    return r.json();
+  }
+
+  async function deleteOrder(paypalOrderId) {
+    const r = await fetch(API_BASE + '/api/orders/group/' + encodeURIComponent(paypalOrderId), {
       method: 'DELETE',
       headers: authHeaders(),
     });
@@ -368,6 +378,7 @@
     capturePaypalOrder,
     getOrders,
     updateOrderStatus,
+    updateOrderTracking,
     deleteOrder,
   };
 })(window);
