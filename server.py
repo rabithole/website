@@ -33,6 +33,11 @@ API:
     GET  /api/store-status                public — {salesPaused: bool}
     PUT  /api/store-status                (Authorization: Bearer <token>) {salesPaused: bool} —
                                            pause/resume all checkout site-wide
+    POST /api/requests                    public — {name, email, serviceType, description,
+                                           budget, timeline} submit a custom work request
+    GET  /api/requests                    (Authorization: Bearer <token>) list all requests
+    PUT  /api/requests/<id>                (Authorization: Bearer <token>) update status
+    DELETE /api/requests/<id>              (Authorization: Bearer <token>) delete a request
 
 Default owner account (seeded in DB):
     username: admin
@@ -66,6 +71,7 @@ UPLOADS_DIR = ROOT / "assets" / "uploads"
 PORT = 8080
 SESSION_DAYS = 7
 FULFILLMENT_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
+REQUEST_STATUSES = {"New", "In Progress", "Completed", "Declined"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 UPLOAD_CONTENT_TYPES = {
     "image/png": "png",
@@ -94,6 +100,8 @@ ALLOWED_STATIC_FILES = {
     "/manage-posts.html",
     "/add-project.html",
     "/manage-projects.html",
+    "/request.html",
+    "/manage-requests.html",
 }
 ALLOWED_STATIC_PREFIXES = ("/assets/",)
 
@@ -196,6 +204,7 @@ def row_to_product(row):
         "description": row["description"],
         "image": row["image"],
         "shippingInfo": row["shipping_info"],
+        "stockQuantity": row["stock_quantity"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -232,6 +241,20 @@ def row_to_project(row):
         "tags": tags,
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+    }
+
+
+def row_to_request(row):
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "email": row["email"],
+        "serviceType": row["service_type"],
+        "description": row["description"],
+        "budget": row["budget"],
+        "timeline": row["timeline"],
+        "status": row["status"],
+        "createdAt": row["created_at"],
     }
 
 
@@ -456,6 +479,16 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_project(row))
 
+        if path == "/api/requests":
+            if not self._require_auth():
+                return
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT * FROM requests ORDER BY created_at DESC"
+            ).fetchall()
+            conn.close()
+            return self._send_json([row_to_request(r) for r in rows])
+
         if not is_allowed_static_path(path):
             return self._send_json({"error": "Not found"}, 404)
 
@@ -531,6 +564,15 @@ class Handler(SimpleHTTPRequestHandler):
                     conn.close()
                     return self._send_json(
                         {"error": f"“{product['name']}” is sold out"}, 400
+                    )
+                if product["stock_quantity"] is not None and qty > product["stock_quantity"]:
+                    conn.close()
+                    return self._send_json(
+                        {
+                            "error": f"Only {product['stock_quantity']} of “{product['name']}” "
+                            f"left in stock"
+                        },
+                        400,
                     )
                 unit_price = float(product["price"])
                 line_items.append(
@@ -664,10 +706,22 @@ class Handler(SimpleHTTPRequestHandler):
                 product_shipping_info = None
                 if li.get("productId"):
                     prod_row = conn.execute(
-                        "SELECT shipping_info FROM products WHERE id = ?", (li["productId"],)
+                        "SELECT shipping_info, stock_quantity FROM products WHERE id = ?",
+                        (li["productId"],),
                     ).fetchone()
                     if prod_row:
                         product_shipping_info = prod_row["shipping_info"]
+                        if status == "COMPLETED" and prod_row["stock_quantity"] is not None:
+                            remaining = max(0, prod_row["stock_quantity"] - li["quantity"])
+                            conn.execute(
+                                "UPDATE products SET stock_quantity = ? WHERE id = ?",
+                                (remaining, li["productId"]),
+                            )
+                            if remaining == 0:
+                                conn.execute(
+                                    "UPDATE products SET status = 'Sold Out' WHERE id = ?",
+                                    (li["productId"],),
+                                )
                 conn.execute(
                     """INSERT INTO orders
                        (id, product_id, product_name, amount, currency, payer_email, payer_name, paypal_order_id, status, created_at,
@@ -757,11 +811,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             pid = data.get("id") or f"prod-{int(time.time() * 1000)}"
             now = int(time.time() * 1000)
+            stock_quantity = data.get("stockQuantity")
+            stock_quantity = int(stock_quantity) if stock_quantity not in (None, "") else None
             conn = get_db()
             conn.execute(
                 """INSERT INTO products
-                   (id, name, price, category, status, description, image, shipping_info, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (id, name, price, category, status, description, image, shipping_info, stock_quantity, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["name"],
@@ -771,6 +827,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data["description"],
                     data.get("image", "assets/suspension.png"),
                     data.get("shippingInfo") or None,
+                    stock_quantity,
                     data.get("createdAt", now),
                     None,
                 ),
@@ -843,6 +900,40 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             conn.close()
             return self._send_json(row_to_project(row), 201)
+
+        # --- Custom work requests (public — anyone can submit) ---
+        if path == "/api/requests":
+            name = (data.get("name") or "").strip()
+            email = (data.get("email") or "").strip()
+            service_type = (data.get("serviceType") or "").strip()
+            description = (data.get("description") or "").strip()
+            if not name or not email or not service_type or not description:
+                return self._send_json(
+                    {"error": "Name, email, service type, and description are required"}, 400
+                )
+            rid = f"request-{int(time.time() * 1000)}"
+            now = int(time.time() * 1000)
+            conn = get_db()
+            conn.execute(
+                """INSERT INTO requests
+                   (id, name, email, service_type, description, budget, timeline, status, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    rid,
+                    name,
+                    email,
+                    service_type,
+                    description,
+                    (data.get("budget") or "").strip() or None,
+                    (data.get("timeline") or "").strip() or None,
+                    "New",
+                    now,
+                ),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM requests WHERE id = ?", (rid,)).fetchone()
+            conn.close()
+            return self._send_json(row_to_request(row), 201)
 
         self._send_json({"error": "Not found"}, 404)
 
@@ -924,9 +1015,11 @@ class Handler(SimpleHTTPRequestHandler):
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
+            stock_quantity = data.get("stockQuantity")
+            stock_quantity = int(stock_quantity) if stock_quantity not in (None, "") else None
             conn.execute(
                 """UPDATE products SET name=?, price=?, category=?, status=?,
-                   description=?, image=?, shipping_info=?, updated_at=? WHERE id=?""",
+                   description=?, image=?, shipping_info=?, stock_quantity=?, updated_at=? WHERE id=?""",
                 (
                     data["name"],
                     float(data["price"]),
@@ -935,6 +1028,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data["description"],
                     data.get("image", "assets/suspension.png"),
                     data.get("shippingInfo") or None,
+                    stock_quantity,
                     now,
                     pid,
                 ),
@@ -1035,6 +1129,28 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json(group_orders(rows)[0])
 
+        if path.startswith("/api/requests/"):
+            if not self._require_auth():
+                return
+            rid = path.split("/api/requests/", 1)[1]
+            new_status = data.get("status")
+            if new_status not in REQUEST_STATUSES:
+                return self._send_json(
+                    {"error": f"status must be one of {sorted(REQUEST_STATUSES)}"}, 400
+                )
+            conn = get_db()
+            existing = conn.execute(
+                "SELECT id FROM requests WHERE id = ?", (rid,)
+            ).fetchone()
+            if not existing:
+                conn.close()
+                return self._send_json({"error": "Not found"}, 404)
+            conn.execute("UPDATE requests SET status = ? WHERE id = ?", (new_status, rid))
+            conn.commit()
+            row = conn.execute("SELECT * FROM requests WHERE id = ?", (rid,)).fetchone()
+            conn.close()
+            return self._send_json(row_to_request(row))
+
         self._send_json({"error": "Not found"}, 404)
 
     # ---------- DELETE ----------
@@ -1077,6 +1193,16 @@ class Handler(SimpleHTTPRequestHandler):
             paypal_order_id = path.split("/api/orders/group/", 1)[1]
             conn = get_db()
             conn.execute("DELETE FROM orders WHERE paypal_order_id = ?", (paypal_order_id,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"ok": True})
+
+        if path.startswith("/api/requests/"):
+            if not self._require_auth():
+                return
+            rid = path.split("/api/requests/", 1)[1]
+            conn = get_db()
+            conn.execute("DELETE FROM requests WHERE id = ?", (rid,))
             conn.commit()
             conn.close()
             return self._send_json({"ok": True})
@@ -1145,10 +1271,25 @@ def main():
     product_cols = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
     if "shipping_info" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN shipping_info TEXT")
+    if "stock_quantity" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN stock_quantity INTEGER")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS requests (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            service_type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            budget TEXT,
+            timeline TEXT,
+            status TEXT NOT NULL DEFAULT 'New',
+            created_at INTEGER NOT NULL
         )"""
     )
     conn.execute(

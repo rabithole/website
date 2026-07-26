@@ -226,7 +226,8 @@
         </div>`;
       }
       const soldOut = p.status === 'Sold Out';
-      if (soldOut) hasBlocking = true;
+      const overStock = !soldOut && typeof p.stockQuantity === 'number' && item.quantity > p.stockQuantity;
+      if (soldOut || overStock) hasBlocking = true;
       else subtotal += p.price * item.quantity;
       return `
         <div class="cart-row">
@@ -235,6 +236,8 @@
             <div class="cart-row-name">${p.name}</div>
             ${soldOut
               ? '<div class="cart-row-warn">Sold out — remove to check out</div>'
+              : overStock
+              ? `<div class="cart-row-warn">Only ${p.stockQuantity} in stock — reduce quantity</div>`
               : `<div class="cart-row-price">${formatMoney(p.price)} each</div>`}
             <div class="cart-row-qty">
               <button class="qty-btn" data-qty-dec="${item.productId}">−</button>
@@ -243,7 +246,7 @@
             </div>
           </div>
           <div class="cart-row-right">
-            <div class="cart-row-total">${soldOut ? '' : formatMoney(p.price * item.quantity)}</div>
+            <div class="cart-row-total">${(soldOut || overStock) ? '' : formatMoney(p.price * item.quantity)}</div>
             <button class="cart-remove" data-remove="${item.productId}">Remove</button>
           </div>
         </div>`;
@@ -268,7 +271,10 @@
     bodyEl.querySelectorAll('[data-qty-inc]').forEach(btn =>
       btn.addEventListener('click', () => {
         const it = getCart().find(i => i.productId === btn.dataset.qtyInc);
-        if (it) setQuantity(it.productId, it.quantity + 1);
+        if (!it) return;
+        const p = products.find(x => x.id === it.productId);
+        const maxQty = p && typeof p.stockQuantity === 'number' ? p.stockQuantity : Infinity;
+        setQuantity(it.productId, Math.min(maxQty, it.quantity + 1));
       }));
     bodyEl.querySelectorAll('[data-qty-dec]').forEach(btn =>
       btn.addEventListener('click', () => {

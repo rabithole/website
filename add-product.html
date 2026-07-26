@@ -227,13 +227,20 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="status">Availability</label>
-          <select id="status" name="status">
-            <option value="Available">Available — ships in 3–5 days</option>
-            <option value="Made to Order">Made to Order — 7–14 days</option>
-            <option value="Sold Out">Sold Out</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="status">Availability</label>
+            <select id="status" name="status">
+              <option value="Available">Available — ships in 3–5 days</option>
+              <option value="Made to Order">Made to Order — 7–14 days</option>
+              <option value="Sold Out">Sold Out</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="stockQuantity">Stock Quantity <span class="optional">(optional)</span></label>
+            <input type="number" id="stockQuantity" name="stockQuantity" placeholder="Leave blank for unlimited" min="0" step="1">
+            <div class="hint">If set, checkout blocks orders once stock runs out and auto-marks the item Sold Out.</div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -423,6 +430,7 @@
         document.getElementById('status').value = editing.status;
         document.getElementById('description').value = editing.description;
         document.getElementById('shippingInfo').value = editing.shippingInfo || '';
+        document.getElementById('stockQuantity').value = editing.stockQuantity ?? '';
         document.getElementById('image').value = editing.image;
         const presets = document.querySelectorAll('.image-option[data-src]');
         const matchesPreset = Array.from(presets).some(o => o.dataset.src === editing.image);
@@ -444,6 +452,8 @@
       const status = document.getElementById('status').value;
       const description = document.getElementById('description').value.trim();
       const shippingInfo = document.getElementById('shippingInfo').value.trim();
+      const stockQuantityRaw = document.getElementById('stockQuantity').value.trim();
+      const stockQuantity = stockQuantityRaw === '' ? null : parseInt(stockQuantityRaw, 10);
       const image = document.getElementById('image').value;
       const statusEl = document.getElementById('statusMsg');
       const submitBtn = document.getElementById('submitBtn');
@@ -456,7 +466,7 @@
 
       const product = {
         id: editing ? editing.id : ('prod-' + Date.now()),
-        name, price, category, status, description, shippingInfo, image,
+        name, price, category, status, description, shippingInfo, stockQuantity, image,
         createdAt: editing ? editing.createdAt : Date.now(),
         updatedAt: editing ? Date.now() : null,
         _isEdit: !!editing

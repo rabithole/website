@@ -171,6 +171,16 @@
       white-space: pre-wrap;
     }
 
+    .made-to-order-note {
+      background: rgba(0,150,220,0.1); border: 1px solid rgba(0,150,220,0.3); color: #6ec8f0;
+      border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.88rem; margin-bottom: 1.2rem;
+    }
+
+    .stock-note {
+      font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.8rem;
+    }
+    .stock-note.low { color: #ffcf5c; font-weight: 600; }
+
     .actions-bar { display: flex; gap: 0.7rem; flex-wrap: wrap; }
 
     .btn {
@@ -232,6 +242,7 @@
         <a href="products.html" class="active">Shop</a>
         <a href="blog.html">Blog</a>
         <a href="projects.html">Projects</a>
+        <a href="request.html">Request Work</a>
         <a href="contact.html">Contact</a>
       </div>
     </div>
@@ -398,10 +409,16 @@
             <span class="detail-status ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
           </div>
           <div class="detail-desc">${escapeHtml(p.description)}</div>
+          ${p.status === 'Made to Order' ? `
+            <div class="made-to-order-note">⏳ Made to order — please allow 7–14 days before this ships.</div>
+          ` : ''}
           <div class="actions-bar">
             <a href="mailto:rabithole.sales@gmail.com?subject=Inquiry:%20${encodeURIComponent(p.name)}" class="btn btn-secondary" id="inquireBtn">Questions? Email us</a>
           </div>
           <div class="checkout-box" id="checkoutBox">
+            ${typeof p.stockQuantity === 'number' ? `
+              <div class="stock-note ${p.stockQuantity <= 3 ? 'low' : ''}">${p.stockQuantity} in stock</div>
+            ` : ''}
             <div class="qty-selector" id="qtySelector">
               <label>Qty</label>
               <button type="button" class="qty-btn-lg" id="qtyDecBtn">−</button>
@@ -460,13 +477,14 @@
       }
 
       let qty = 1;
+      const maxQty = typeof product.stockQuantity === 'number' ? Math.max(1, product.stockQuantity) : Infinity;
       const qtyValueEl = document.getElementById('qtyValue');
       document.getElementById('qtyDecBtn').onclick = () => {
         qty = Math.max(1, qty - 1);
         qtyValueEl.textContent = qty;
       };
       document.getElementById('qtyIncBtn').onclick = () => {
-        qty += 1;
+        qty = Math.min(maxQty, qty + 1);
         qtyValueEl.textContent = qty;
       };
       addBtn.onclick = () => {

@@ -310,6 +310,42 @@
     return r.json();
   }
 
+  // ---------- Custom work requests ----------
+  async function submitRequest(request) {
+    const r = await fetch(API_BASE + '/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not submit request');
+    return r.json();
+  }
+
+  async function getRequests() {
+    const r = await fetch(API_BASE + '/api/requests', { headers: authHeaders() });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not load requests');
+    return r.json();
+  }
+
+  async function updateRequestStatus(id, status) {
+    const r = await fetch(API_BASE + '/api/requests/' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not update request');
+    return r.json();
+  }
+
+  async function deleteRequest(id) {
+    const r = await fetch(API_BASE + '/api/requests/' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not delete request');
+    return true;
+  }
+
   // ---------- PayPal checkout ----------
   async function getPaypalConfig() {
     const r = await fetch(API_BASE + '/api/paypal/config');
@@ -392,6 +428,10 @@
     probeApi,
     getPaypalConfig,
     getStoreStatus,
+    submitRequest,
+    getRequests,
+    updateRequestStatus,
+    deleteRequest,
     updateStoreStatus,
     createCartOrder,
     capturePaypalOrder,

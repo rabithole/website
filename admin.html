@@ -89,7 +89,7 @@
     .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
 
     .stats {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 2rem;
     }
     .stat {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -182,6 +182,7 @@
       <div class="stat"><div class="num" id="postCount">—</div><div class="label">Blog posts</div></div>
       <div class="stat"><div class="num" id="projCount">—</div><div class="label">RC Projects</div></div>
       <div class="stat"><div class="num" id="orderCount">—</div><div class="label">Orders</div></div>
+      <div class="stat"><div class="num" id="requestCount">—</div><div class="label">Custom Requests</div></div>
     </div>
 
     <div class="grid">
@@ -216,6 +217,14 @@
           <a href="orders.html" class="btn btn-primary">View Orders</a>
         </div>
       </div>
+      <div class="card">
+        <h2>Custom Requests</h2>
+        <p>CAD, printing, build, and web work requests from the public form.</p>
+        <div class="card-actions">
+          <a href="manage-requests.html" class="btn btn-primary">View Requests</a>
+          <a href="request.html" class="btn btn-secondary">Public Form</a>
+        </div>
+      </div>
     </div>
 
     <div class="quick-links">
@@ -228,6 +237,7 @@
         <li><a href="manage-posts.html">Add / edit / remove posts</a></li>
         <li><a href="manage-projects.html">Add / edit / remove RC projects</a></li>
         <li><a href="orders.html">View orders</a></li>
+        <li><a href="manage-requests.html">View custom work requests</a></li>
         <li><a href="account.html">Change username / password</a></li>
       </ul>
     </div>
@@ -269,6 +279,12 @@
           } catch {
             document.getElementById('orderCount').textContent = '0';
           }
+          try {
+            const requests = await RabitholeDB.getRequests();
+            document.getElementById('requestCount').textContent = requests.length;
+          } catch {
+            document.getElementById('requestCount').textContent = '0';
+          }
         } else {
           const products = JSON.parse(localStorage.getItem('rabithole_products') || '[]');
           const posts = JSON.parse(localStorage.getItem('rabithole_blog_posts') || '[]');
@@ -276,12 +292,14 @@
           document.getElementById('postCount').textContent = posts.length;
           document.getElementById('projCount').textContent = '0';
           document.getElementById('orderCount').textContent = '0';
+          document.getElementById('requestCount').textContent = '0';
         }
       } catch {
         document.getElementById('prodCount').textContent = '0';
         document.getElementById('postCount').textContent = '0';
         document.getElementById('projCount').textContent = '0';
         document.getElementById('orderCount').textContent = '0';
+        document.getElementById('requestCount').textContent = '0';
       }
     })();
 

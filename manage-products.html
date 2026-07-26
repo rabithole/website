@@ -93,6 +93,7 @@
     .status-pill.Available { background: rgba(0,180,100,0.15); color: #5ddea0; }
     .status-pill.Made-to-Order { background: rgba(0,150,220,0.15); color: #6fc8ff; }
     .status-pill.Sold-Out { background: rgba(255,180,0,0.12); color: #ffcf5c; }
+    .hint { font-size: 0.78rem; color: var(--text-muted); }
 
     .row-actions { display: flex; gap: 0.6rem; }
     .btn-edit, .btn-delete {
@@ -215,6 +216,7 @@
               <th>Category</th>
               <th>Price</th>
               <th>Status</th>
+              <th>Stock</th>
               <th>Sold</th>
               <th>Revenue</th>
               <th></th>
@@ -234,6 +236,7 @@
                 <td data-label="Category">${escapeHtml(p.category)}</td>
                 <td data-label="Price">${formatPrice(p.price)}</td>
                 <td data-label="Status"><span class="status-pill ${statusClass(p.status)}">${escapeHtml(p.status)}</span></td>
+                <td data-label="Stock">${p.stockQuantity === null || p.stockQuantity === undefined ? '<span class="hint">Unlimited</span>' : p.stockQuantity}</td>
                 <td data-label="Sold">${s.units}</td>
                 <td data-label="Revenue">${formatPrice(s.revenue)}</td>
                 <td data-label="">
