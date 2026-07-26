@@ -74,6 +74,7 @@ ALLOWED_STATIC_FILES = {
     "/products.html",
     "/blog.html",
     "/projects.html",
+    "/contact.html",
     "/login.html",
     "/admin.html",
     "/orders.html",

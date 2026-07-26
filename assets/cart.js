@@ -318,7 +318,7 @@
     const config = await RabitholeDB.getPaypalConfig();
     if (!config.configured) {
       msg.className = 'cart-msg info';
-      msg.textContent = 'Online payment isn’t set up yet — email hello@rabithole.com to order.';
+      msg.textContent = 'Online payment isn’t set up yet — email rabithole.sales@gmail.com to order.';
       return;
     }
 
@@ -344,7 +344,7 @@
               msg.textContent = 'Payment successful! A receipt was sent by PayPal to your email.';
             } else {
               msg.className = 'cart-msg error';
-              msg.textContent = `Payment status: ${result.status}. Contact hello@rabithole.com if this seems wrong.`;
+              msg.textContent = `Payment status: ${result.status}. Contact rabithole.sales@gmail.com if this seems wrong.`;
             }
           } catch (err) {
             msg.className = 'cart-msg error';
@@ -353,7 +353,7 @@
         },
         onError: (err) => {
           msg.className = 'cart-msg error';
-          msg.textContent = 'PayPal checkout error. Please try again or email hello@rabithole.com.';
+          msg.textContent = 'PayPal checkout error. Please try again or email rabithole.sales@gmail.com.';
           console.error('PayPal error:', err);
         },
         onCancel: () => {

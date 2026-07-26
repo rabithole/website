@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(7,8,10,0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+    }
+    .nav-inner {
+      max-width: 1000px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 3.5rem 1.5rem 4rem; }
+    .page-header { text-align: center; margin-bottom: 2.2rem; }
+    .page-header h1 { font-family: 'Orbitron', sans-serif; font-size: 1.9rem; margin-bottom: 0.6rem; }
+    .page-header p { color: var(--text-muted); font-size: 1rem; }
+
+    .contact-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 2.2rem 1.8rem; text-align: center;
+    }
+    .contact-card p { color: var(--text-muted); margin-bottom: 1.4rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.85rem 1.6rem; border-radius: 10px; font-weight: 600;
+      font-size: 1rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+
+    .contact-reasons {
+      margin-top: 2.2rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    }
+    .reason {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem; text-align: center;
+    }
+    .reason h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .reason p { color: var(--text-muted); font-size: 0.85rem; }
+
+    @media (max-width: 600px) {
+      .contact-reasons { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="products.html">Shop</a>
+        <a href="blog.html">Blog</a>
+        <a href="projects.html">Projects</a>
+        <a href="contact.html" class="active">Contact</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Get in Touch</h1>
+      <p>Questions about a part, a custom build, or just want to talk RC and mechanical engineering — reach out.</p>
+    </div>
+
+    <div class="contact-card">
+      <p>The fastest way to reach me is email:</p>
+      <a href="mailto:rabithole.sales@gmail.com" class="btn btn-primary">rabithole.sales@gmail.com</a>
+    </div>
+
+    <div class="contact-reasons">
+      <div class="reason">
+        <h3>Order Questions</h3>
+        <p>Shipping, sizing, compatibility, or an order you already placed.</p>
+      </div>
+      <div class="reason">
+        <h3>Custom Work</h3>
+        <p>Have a part in mind that isn't listed? Send specs or a sketch.</p>
+      </div>
+      <div class="reason">
+        <h3>Everything Else</h3>
+        <p>Engineering questions, collabs, or just saying hi.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
