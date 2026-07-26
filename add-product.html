@@ -228,6 +228,12 @@
         </div>
 
         <div class="form-group">
+          <label for="shippingInfo">Shipping Details <span class="optional">(optional, for your reference)</span></label>
+          <input type="text" id="shippingInfo" name="shippingInfo" placeholder="e.g. 8 oz, ships in a 6x4x2 box" maxlength="200">
+          <div class="hint">Shown on the order once it sells, so you have weight/box size handy when buying a shipping label. Not shown to customers.</div>
+        </div>
+
+        <div class="form-group">
           <label for="description">Description</label>
           <textarea id="description" name="description" placeholder="What is this part? Materials, compatibility, key features, print details…" required></textarea>
           <div class="hint">Be specific — platform compatibility, material (PA6-CF, PETG, etc.), and what makes it better than stock.</div>
@@ -407,6 +413,7 @@
         document.getElementById('category').value = editing.category;
         document.getElementById('status').value = editing.status;
         document.getElementById('description').value = editing.description;
+        document.getElementById('shippingInfo').value = editing.shippingInfo || '';
         document.getElementById('image').value = editing.image;
         const presets = document.querySelectorAll('.image-option[data-src]');
         const matchesPreset = Array.from(presets).some(o => o.dataset.src === editing.image);
@@ -427,6 +434,7 @@
       const category = document.getElementById('category').value;
       const status = document.getElementById('status').value;
       const description = document.getElementById('description').value.trim();
+      const shippingInfo = document.getElementById('shippingInfo').value.trim();
       const image = document.getElementById('image').value;
       const statusEl = document.getElementById('statusMsg');
       const submitBtn = document.getElementById('submitBtn');
@@ -439,7 +447,7 @@
 
       const product = {
         id: editing ? editing.id : ('prod-' + Date.now()),
-        name, price, category, status, description, image,
+        name, price, category, status, description, shippingInfo, image,
         createdAt: editing ? editing.createdAt : Date.now(),
         updatedAt: editing ? Date.now() : null,
         _isEdit: !!editing

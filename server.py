@@ -18,6 +18,7 @@ API:
     GET/PUT/DELETE /api/projects/<id>
     GET  /api/paypal/config              public PayPal client id / currency
     POST /api/paypal/orders               {items: [{productId, quantity}]}  -> create PayPal order for a cart
+                                           (requests the buyer's shipping address on file)
     POST /api/paypal/orders/<id>/capture  -> capture an approved order
     GET  /api/orders                      (Authorization: Bearer <token>) owner order history
     PUT  /api/orders/<id>                  (Authorization: Bearer <token>) update fulfillment status
@@ -173,6 +174,7 @@ def row_to_product(row):
         "status": row["status"],
         "description": row["description"],
         "image": row["image"],
+        "shippingInfo": row["shipping_info"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -233,6 +235,16 @@ def row_to_order(row):
         "status": row["status"],
         "fulfillmentStatus": row["fulfillment_status"],
         "createdAt": row["created_at"],
+        "shipping": {
+            "name": row["shipping_name"],
+            "addressLine1": row["shipping_address_line1"],
+            "addressLine2": row["shipping_address_line2"],
+            "city": row["shipping_city"],
+            "state": row["shipping_state"],
+            "postalCode": row["shipping_postal_code"],
+            "country": row["shipping_country"],
+        },
+        "productShippingInfo": row["product_shipping_info"],
     }
 
 
@@ -485,6 +497,9 @@ class Handler(SimpleHTTPRequestHandler):
                     token,
                     {
                         "intent": "CAPTURE",
+                        "application_context": {
+                            "shipping_preference": "GET_FROM_FILE",
+                        },
                         "purchase_units": [
                             {
                                 "reference_id": "cart",
@@ -555,6 +570,16 @@ class Handler(SimpleHTTPRequestHandler):
             ) or None
             payer_email = payer.get("email_address")
 
+            shipping = (capture.get("purchase_units") or [{}])[0].get("shipping") or {}
+            shipping_address = shipping.get("address") or {}
+            shipping_name = (shipping.get("name") or {}).get("full_name")
+            shipping_address_line1 = shipping_address.get("address_line_1")
+            shipping_address_line2 = shipping_address.get("address_line_2")
+            shipping_city = shipping_address.get("admin_area_2")
+            shipping_state = shipping_address.get("admin_area_1")
+            shipping_postal_code = shipping_address.get("postal_code")
+            shipping_country = shipping_address.get("country_code")
+
             with PENDING_CARTS_LOCK:
                 line_items = PENDING_CARTS.pop(order_id, None)
 
@@ -580,10 +605,18 @@ class Handler(SimpleHTTPRequestHandler):
             for idx, li in enumerate(line_items):
                 order_row_id = f"order-{now}-{idx}"
                 order_row_ids.append(order_row_id)
+                product_shipping_info = None
+                if li.get("productId"):
+                    prod_row = conn.execute(
+                        "SELECT shipping_info FROM products WHERE id = ?", (li["productId"],)
+                    ).fetchone()
+                    if prod_row:
+                        product_shipping_info = prod_row["shipping_info"]
                 conn.execute(
                     """INSERT INTO orders
-                       (id, product_id, product_name, amount, currency, payer_email, payer_name, paypal_order_id, status, created_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                       (id, product_id, product_name, amount, currency, payer_email, payer_name, paypal_order_id, status, created_at,
+                        shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_postal_code, shipping_country, product_shipping_info)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         order_row_id,
                         li["productId"],
@@ -595,6 +628,14 @@ class Handler(SimpleHTTPRequestHandler):
                         order_id,
                         status,
                         now,
+                        shipping_name,
+                        shipping_address_line1,
+                        shipping_address_line2,
+                        shipping_city,
+                        shipping_state,
+                        shipping_postal_code,
+                        shipping_country,
+                        product_shipping_info,
                     ),
                 )
             conn.commit()
@@ -663,8 +704,8 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO products
-                   (id, name, price, category, status, description, image, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                   (id, name, price, category, status, description, image, shipping_info, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["name"],
@@ -673,6 +714,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data.get("status", "Available"),
                     data["description"],
                     data.get("image", "assets/suspension.png"),
+                    data.get("shippingInfo") or None,
                     data.get("createdAt", now),
                     None,
                 ),
@@ -817,7 +859,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
                 """UPDATE products SET name=?, price=?, category=?, status=?,
-                   description=?, image=?, updated_at=? WHERE id=?""",
+                   description=?, image=?, shipping_info=?, updated_at=? WHERE id=?""",
                 (
                     data["name"],
                     float(data["price"]),
@@ -825,6 +867,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data.get("status", "Available"),
                     data["description"],
                     data.get("image", "assets/suspension.png"),
+                    data.get("shippingInfo") or None,
                     now,
                     pid,
                 ),
@@ -1007,6 +1050,18 @@ def main():
         conn.execute(
             "ALTER TABLE orders ADD COLUMN fulfillment_status TEXT NOT NULL DEFAULT 'Pending'"
         )
+    if "shipping_name" not in order_cols:
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_name TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_address_line1 TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_address_line2 TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_city TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_state TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_postal_code TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN shipping_country TEXT")
+        conn.execute("ALTER TABLE orders ADD COLUMN product_shipping_info TEXT")
+    product_cols = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
+    if "shipping_info" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN shipping_info TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,

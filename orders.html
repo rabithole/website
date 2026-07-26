@@ -74,6 +74,7 @@
     }
     .status-pill.COMPLETED { background: rgba(0,180,100,0.15); color: #5ddea0; }
     .status-pill.other { background: rgba(255,180,0,0.12); color: #ffcf5c; }
+    .hint { font-size: 0.78rem; color: var(--text-muted); }
 
     .fulfillment-select {
       background: var(--bg); color: var(--text); border: 1px solid var(--border);
@@ -177,6 +178,18 @@
 
       const FULFILLMENT_STATUSES = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
 
+      function formatShipping(o) {
+        const s = o.shipping || {};
+        const lines = [
+          s.name,
+          s.addressLine1,
+          s.addressLine2,
+          [s.city, s.state, s.postalCode].filter(Boolean).join(', '),
+          s.country,
+        ].filter(Boolean);
+        return lines.length ? lines.join('<br>') : '<span class="hint">No address on file</span>';
+      }
+
       wrap.innerHTML = `
         <table>
           <thead>
@@ -185,6 +198,7 @@
               <th>Product</th>
               <th>Amount</th>
               <th>Payer</th>
+              <th>Ship To</th>
               <th>Payment</th>
               <th>Fulfillment</th>
               <th>PayPal Order ID</th>
@@ -195,9 +209,13 @@
             ${orders.map(o => `
               <tr data-order-id="${o.id}">
                 <td data-label="Date">${formatDate(o.createdAt)}</td>
-                <td data-label="Product">${o.productName || o.productId || '—'}</td>
+                <td data-label="Product">
+                  ${o.productName || o.productId || '—'}
+                  ${o.productShippingInfo ? `<br><span class="hint">${o.productShippingInfo}</span>` : ''}
+                </td>
                 <td data-label="Amount">${formatMoney(o.amount, o.currency)}</td>
                 <td data-label="Payer">${o.payerName || ''}${o.payerEmail ? ' (' + o.payerEmail + ')' : ''}</td>
+                <td data-label="Ship To">${formatShipping(o)}</td>
                 <td data-label="Payment"><span class="status-pill ${o.status === 'COMPLETED' ? 'COMPLETED' : 'other'}">${o.status}</span></td>
                 <td data-label="Fulfillment">
                   <select class="fulfillment-select ${o.fulfillmentStatus || 'Pending'}" onchange="handleStatusChange('${o.id}', this)">
