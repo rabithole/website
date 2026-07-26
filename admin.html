@@ -142,6 +142,7 @@
     <div class="stats" id="stats">
       <div class="stat"><div class="num" id="prodCount">—</div><div class="label">Products</div></div>
       <div class="stat"><div class="num" id="postCount">—</div><div class="label">Blog posts</div></div>
+      <div class="stat"><div class="num" id="projCount">—</div><div class="label">RC Projects</div></div>
       <div class="stat"><div class="num" id="orderCount">—</div><div class="label">Orders</div></div>
     </div>
 
@@ -163,6 +164,14 @@
         </div>
       </div>
       <div class="card">
+        <h2>RC Projects</h2>
+        <p>Add builds, edit write-ups and tags, or remove old projects.</p>
+        <div class="card-actions">
+          <a href="manage-projects.html" class="btn btn-primary">Manage Projects</a>
+          <a href="projects.html" class="btn btn-secondary">View Projects</a>
+        </div>
+      </div>
+      <div class="card">
         <h2>Orders</h2>
         <p>See PayPal payments customers have made through the shop.</p>
         <div class="card-actions">
@@ -179,6 +188,7 @@
         <li><a href="blog.html">Blog (public view)</a></li>
         <li><a href="manage-products.html">Add / edit / remove products</a></li>
         <li><a href="manage-posts.html">Add / edit / remove posts</a></li>
+        <li><a href="manage-projects.html">Add / edit / remove RC projects</a></li>
         <li><a href="orders.html">View orders</a></li>
         <li><a href="account.html">Change username / password</a></li>
       </ul>
@@ -209,8 +219,10 @@
           const mode = await RabitholeDB.storageMode();
           const products = await RabitholeDB.getProducts();
           const posts = await RabitholeDB.getPosts();
+          const projects = await RabitholeDB.getProjects();
           document.getElementById('prodCount').textContent = products.length;
           document.getElementById('postCount').textContent = posts.length;
+          document.getElementById('projCount').textContent = projects.length;
           const badge = document.querySelector('.badge');
           if (badge && mode === 'database') badge.textContent = 'OWNER · DB';
           try {
@@ -224,11 +236,13 @@
           const posts = JSON.parse(localStorage.getItem('rabithole_blog_posts') || '[]');
           document.getElementById('prodCount').textContent = products.length;
           document.getElementById('postCount').textContent = posts.length;
+          document.getElementById('projCount').textContent = '0';
           document.getElementById('orderCount').textContent = '0';
         }
       } catch {
         document.getElementById('prodCount').textContent = '0';
         document.getElementById('postCount').textContent = '0';
+        document.getElementById('projCount').textContent = '0';
         document.getElementById('orderCount').textContent = '0';
       }
     })();

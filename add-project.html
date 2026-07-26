@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add RC Project — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+    }
+    .nav-links a:hover { color: var(--orange); }
+    .nav-links a.active { color: var(--orange); }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+
+    .process-steps {
+      display: flex; gap: 0.6rem; margin-bottom: 1.6rem; flex-wrap: wrap;
+    }
+    .step {
+      font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem;
+      border-radius: 999px; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .step.active {
+      background: rgba(255,107,0,0.15); border-color: rgba(255,107,0,0.4); color: var(--orange);
+    }
+
+    .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
+    .page-sub { color: var(--text-muted); margin-bottom: 1.8rem; font-size: 0.98rem; }
+
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.7rem;
+    }
+
+    .form-group { margin-bottom: 1.3rem; }
+    label {
+      display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem;
+    }
+    label .optional { font-weight: 400; color: var(--text-muted); }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.98rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: var(--orange); }
+    textarea { min-height: 140px; resize: vertical; line-height: 1.55; }
+
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+    .image-options {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin-top: 0.5rem;
+    }
+    .image-option {
+      border: 2px solid var(--border); border-radius: 8px; overflow: hidden;
+      cursor: pointer; aspect-ratio: 1; position: relative; transition: border-color 0.2s;
+    }
+    .image-option img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .image-option.selected { border-color: var(--orange); }
+    .image-option.selected::after {
+      content: '✓'; position: absolute; top: 4px; right: 6px;
+      background: var(--orange); color: #fff; width: 20px; height: 20px;
+      border-radius: 50%; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+    .image-option-upload {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); border-style: dashed;
+    }
+    .image-option-upload:hover { border-color: var(--cyan); }
+    #uploadPlaceholder { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 0.4rem; }
+    .image-option-upload.uploading { opacity: 0.6; pointer-events: none; }
+
+    .actions {
+      display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.8rem 1.4rem; border-radius: 10px; font-weight: 600;
+      font-size: 0.95rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    .status {
+      margin-top: 1.1rem; padding: 0.85rem 1rem; border-radius: 10px;
+      font-size: 0.9rem; display: none;
+    }
+    .status.success {
+      display: block; background: rgba(0,180,100,0.12);
+      border: 1px solid rgba(0,180,100,0.35); color: #5ddea0;
+    }
+    .status.error {
+      display: block; background: rgba(220,60,60,0.12);
+      border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
+    }
+
+    @media (max-width: 560px) {
+      .image-options { grid-template-columns: repeat(2, 1fr); }
+      .actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="admin.html">Dashboard</a>
+        <a href="projects.html">Projects</a>
+        <a href="add-project.html" class="active">Add Project</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="process-steps" id="processSteps">
+      <span class="step active">1. Details</span>
+      <span class="step">2. Image</span>
+      <span class="step">3. Publish</span>
+    </div>
+
+    <h1 class="page-title" id="pageTitle">Add RC Project</h1>
+    <p class="page-sub" id="pageSub">Share a build. It'll show up in the RC Projects section on the homepage.</p>
+
+    <div class="form-card">
+      <form id="projectForm" novalidate>
+        <div class="form-group">
+          <label for="title">Project Title</label>
+          <input type="text" id="title" name="title" placeholder="e.g. Lightweight Suspension Overhaul" required maxlength="120" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" placeholder="What did you build or redesign? What problem were you solving, and what did you learn?" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="tags">Tags <span class="optional">(optional, comma-separated)</span></label>
+          <input type="text" id="tags" name="tags" placeholder="FEA, PA6-CF, 1/10 Buggy">
+        </div>
+
+        <div class="form-group">
+          <label>Project Image <span class="optional">(choose one, or upload your own)</span></label>
+          <div class="image-options" id="imageOptions">
+            <div class="image-option selected" data-src="assets/suspension.png">
+              <img src="assets/suspension.png" alt="Suspension">
+            </div>
+            <div class="image-option" data-src="assets/parts.png">
+              <img src="assets/parts.png" alt="Parts">
+            </div>
+            <div class="image-option" data-src="assets/hero.png">
+              <img src="assets/hero.png" alt="Hero">
+            </div>
+            <div class="image-option" data-src="assets/logo.png">
+              <img src="assets/logo.png" alt="Logo">
+            </div>
+            <div class="image-option image-option-upload" id="uploadOption">
+              <img id="uploadPreview" style="display:none;">
+              <span id="uploadPlaceholder">+ Upload</span>
+            </div>
+          </div>
+          <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB.</div>
+          <div id="uploadStatus" class="hint"></div>
+          <input type="hidden" id="image" name="image" value="assets/suspension.png">
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Publish Project</button>
+          <a href="manage-projects.html" class="btn btn-secondary">Cancel</a>
+        </div>
+
+        <div id="statusMsg" class="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    if (sessionStorage.getItem('rabithole_auth') !== '1') {
+      window.location.href = 'login.html';
+    }
+
+    // Image selection — preset thumbnails
+    document.querySelectorAll('.image-option[data-src]').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        document.getElementById('image').value = el.dataset.src;
+      });
+    });
+
+    // Image selection — upload your own
+    const uploadOption = document.getElementById('uploadOption');
+    const uploadPreview = document.getElementById('uploadPreview');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const imageFileInput = document.getElementById('imageFileInput');
+
+    uploadOption.addEventListener('click', () => imageFileInput.click());
+
+    imageFileInput.addEventListener('change', async () => {
+      const file = imageFileInput.files[0];
+      if (!file) return;
+
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(file.type)) {
+        uploadStatus.textContent = 'Unsupported file type. Use PNG, JPG, WEBP, or GIF.';
+        imageFileInput.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        uploadStatus.textContent = 'Image is too large (max 8MB).';
+        imageFileInput.value = '';
+        return;
+      }
+      if (!window.RabitholeDB) {
+        uploadStatus.textContent = 'Uploading requires the database server to be running.';
+        imageFileInput.value = '';
+        return;
+      }
+
+      uploadStatus.textContent = 'Uploading…';
+      uploadOption.classList.add('uploading');
+      try {
+        const result = await RabitholeDB.uploadImage(file);
+        document.getElementById('image').value = result.path;
+        uploadPreview.src = result.path;
+        uploadPreview.style.display = 'block';
+        uploadPlaceholder.style.display = 'none';
+        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
+        uploadOption.classList.add('selected');
+        uploadStatus.textContent = 'Uploaded.';
+      } catch (err) {
+        uploadStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
+        imageFileInput.value = '';
+      } finally {
+        uploadOption.classList.remove('uploading');
+      }
+    });
+
+    // Edit mode
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+    let editing = null;
+
+    (async function loadEdit() {
+      if (!editId) return;
+      if (!window.RabitholeDB) return;
+      editing = await RabitholeDB.getProject(editId);
+      if (editing) {
+        document.getElementById('pageTitle').textContent = 'Edit RC Project';
+        document.getElementById('pageSub').textContent = 'Update project details and save changes.';
+        document.getElementById('submitBtn').textContent = 'Save Changes';
+        document.getElementById('title').value = editing.title;
+        document.getElementById('description').value = editing.description;
+        document.getElementById('tags').value = (editing.tags || []).join(', ');
+        document.getElementById('image').value = editing.image;
+        const presets = document.querySelectorAll('.image-option[data-src]');
+        const matchesPreset = Array.from(presets).some(o => o.dataset.src === editing.image);
+        presets.forEach(o => o.classList.toggle('selected', o.dataset.src === editing.image));
+        if (!matchesPreset) {
+          uploadPreview.src = editing.image;
+          uploadPreview.style.display = 'block';
+          uploadPlaceholder.style.display = 'none';
+          uploadOption.classList.add('selected');
+        }
+      }
+    })();
+
+    document.getElementById('projectForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const tagsRaw = document.getElementById('tags').value.trim();
+      const image = document.getElementById('image').value;
+      const statusEl = document.getElementById('statusMsg');
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (!title || !description) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Title and description are required.';
+        return;
+      }
+      if (!window.RabitholeDB) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Saving requires the database server to be running.';
+        return;
+      }
+
+      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const project = {
+        id: editing ? editing.id : undefined,
+        title, description, tags, image,
+        _isEdit: !!editing,
+      };
+
+      try {
+        await RabitholeDB.saveProject(project);
+        statusEl.className = 'status success';
+        statusEl.textContent = editing ? 'Project updated. Redirecting…' : 'Project published! Redirecting…';
+        document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
+        submitBtn.disabled = true;
+        setTimeout(() => {
+          window.location.href = 'manage-projects.html';
+        }, 850);
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');
+      }
+    });
+  </script>
+</body>
+</html>

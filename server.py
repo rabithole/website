@@ -14,6 +14,8 @@ API:
     GET/PUT/DELETE /api/products/<id>
     GET/POST /api/posts
     GET/PUT/DELETE /api/posts/<id>
+    GET/POST /api/projects
+    GET/PUT/DELETE /api/projects/<id>
     GET  /api/paypal/config              public PayPal client id / currency
     POST /api/paypal/orders               {items: [{productId, quantity}]}  -> create PayPal order for a cart
     POST /api/paypal/orders/<id>/capture  -> capture an approved order
@@ -71,6 +73,7 @@ ALLOWED_STATIC_FILES = {
     "/index.html",
     "/products.html",
     "/blog.html",
+    "/projects.html",
     "/login.html",
     "/admin.html",
     "/orders.html",
@@ -79,6 +82,8 @@ ALLOWED_STATIC_FILES = {
     "/create-post.html",
     "/manage-products.html",
     "/manage-posts.html",
+    "/add-project.html",
+    "/manage-projects.html",
 }
 ALLOWED_STATIC_PREFIXES = ("/assets/",)
 
@@ -184,6 +189,23 @@ def row_to_post(row):
         "tags": tags,
         "content": row["content"],
         "date": row["date"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def row_to_project(row):
+    tags = row["tags"]
+    try:
+        tags = json.loads(tags) if tags else []
+    except Exception:
+        tags = []
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "description": row["description"],
+        "image": row["image"],
+        "tags": tags,
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -353,6 +375,25 @@ class Handler(SimpleHTTPRequestHandler):
             if not row:
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_post(row))
+
+        if path == "/api/projects":
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT * FROM projects ORDER BY created_at DESC"
+            ).fetchall()
+            conn.close()
+            return self._send_json([row_to_project(r) for r in rows])
+
+        if path.startswith("/api/projects/"):
+            pid = path.split("/api/projects/", 1)[1]
+            conn = get_db()
+            row = conn.execute(
+                "SELECT * FROM projects WHERE id = ?", (pid,)
+            ).fetchone()
+            conn.close()
+            if not row:
+                return self._send_json({"error": "Not found"}, 404)
+            return self._send_json(row_to_project(row))
 
         if not is_allowed_static_path(path):
             return self._send_json({"error": "Not found"}, 404)
@@ -673,6 +714,37 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json(row_to_post(row), 201)
 
+        # --- Projects (auth required for create) ---
+        if path == "/api/projects":
+            if not self._require_auth():
+                return
+            pid = data.get("id") or f"project-{int(time.time() * 1000)}"
+            now = int(time.time() * 1000)
+            tags = data.get("tags", [])
+            if isinstance(tags, list):
+                tags = json.dumps(tags)
+            conn = get_db()
+            conn.execute(
+                """INSERT INTO projects
+                   (id, title, description, image, tags, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (
+                    pid,
+                    data["title"],
+                    data["description"],
+                    data.get("image", "assets/suspension.png"),
+                    tags,
+                    data.get("createdAt", now),
+                    None,
+                ),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM projects WHERE id = ?", (pid,)
+            ).fetchone()
+            conn.close()
+            return self._send_json(row_to_project(row), 201)
+
         self._send_json({"error": "Not found"}, 404)
 
     # ---------- PUT ----------
@@ -788,6 +860,31 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
             return self._send_json(row_to_post(row))
 
+        if path.startswith("/api/projects/"):
+            if not self._require_auth():
+                return
+            pid = path.split("/api/projects/", 1)[1]
+            tags = data.get("tags", [])
+            if isinstance(tags, list):
+                tags = json.dumps(tags)
+            conn = get_db()
+            existing = conn.execute(
+                "SELECT id FROM projects WHERE id = ?", (pid,)
+            ).fetchone()
+            if not existing:
+                conn.close()
+                return self._send_json({"error": "Not found"}, 404)
+            conn.execute(
+                "UPDATE projects SET title=?, description=?, image=?, tags=?, updated_at=? WHERE id=?",
+                (data["title"], data["description"], data.get("image", "assets/suspension.png"), tags, now, pid),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM projects WHERE id = ?", (pid,)
+            ).fetchone()
+            conn.close()
+            return self._send_json(row_to_project(row))
+
         if path.startswith("/api/orders/"):
             if not self._require_auth():
                 return
@@ -835,6 +932,16 @@ class Handler(SimpleHTTPRequestHandler):
             pid = path.split("/api/posts/", 1)[1]
             conn = get_db()
             conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"ok": True})
+
+        if path.startswith("/api/projects/"):
+            if not self._require_auth():
+                return
+            pid = path.split("/api/projects/", 1)[1]
+            conn = get_db()
+            conn.execute("DELETE FROM projects WHERE id = ?", (pid,))
             conn.commit()
             conn.close()
             return self._send_json({"ok": True})
@@ -898,6 +1005,47 @@ def main():
     if "fulfillment_status" not in order_cols:
         conn.execute(
             "ALTER TABLE orders ADD COLUMN fulfillment_status TEXT NOT NULL DEFAULT 'Pending'"
+        )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            image TEXT NOT NULL,
+            tags TEXT NOT NULL DEFAULT '[]',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER
+        )"""
+    )
+    if conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0:
+        seed_now = int(time.time() * 1000)
+        conn.execute(
+            """INSERT INTO projects (id, title, description, image, tags, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?)""",
+            (
+                "project-1",
+                "Lightweight Suspension Overhaul",
+                "Replaced stock arms and towers with CF-nylon topology-optimized parts. "
+                "Reduced unsprung weight while increasing roll stiffness.",
+                "assets/suspension.png",
+                json.dumps(["FEA", "PA6-CF", "1/10 Buggy"]),
+                seed_now,
+                None,
+            ),
+        )
+        conn.execute(
+            """INSERT INTO projects (id, title, description, image, tags, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?)""",
+            (
+                "project-2",
+                "Hybrid Diff & Motor Mount",
+                "Combined CNC aluminum and printed housings for a stronger, serviceable "
+                "drivetrain that still fits the original chassis envelope.",
+                "assets/parts.png",
+                json.dumps(["Hybrid Mfg", "CAD", "Drivetrain"]),
+                seed_now - 1,
+                None,
+            ),
         )
     conn.commit()
     conn.close()

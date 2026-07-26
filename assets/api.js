@@ -8,6 +8,7 @@
   const API_BASE = '';
   const PRODUCT_KEY = 'rabithole_products';
   const POST_KEY = 'rabithole_blog_posts';
+  const PROJECT_KEY = 'rabithole_projects';
 
   let useApi = null;
 
@@ -180,6 +181,69 @@
     return true;
   }
 
+  // ---------- RC Projects ----------
+  async function getProjects() {
+    if (await probeApi()) {
+      const r = await fetch(API_BASE + '/api/projects');
+      return r.json();
+    }
+    return lsGet(PROJECT_KEY);
+  }
+
+  async function getProject(id) {
+    if (await probeApi()) {
+      const r = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(id));
+      if (!r.ok) return null;
+      return r.json();
+    }
+    return lsGet(PROJECT_KEY).find(p => p.id === id) || null;
+  }
+
+  async function saveProject(project) {
+    if (await probeApi()) {
+      if (project._isEdit) {
+        const r = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(project.id), {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(project),
+        });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Save failed');
+        return r.json();
+      }
+      const r = await fetch(API_BASE + '/api/projects', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(project),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Save failed');
+      return r.json();
+    }
+    let list = lsGet(PROJECT_KEY);
+    if (project._isEdit) {
+      list = list.map(p => (p.id === project.id ? { ...project, updatedAt: Date.now() } : p));
+    } else {
+      if (!project.id) project.id = 'project-' + Date.now();
+      project.createdAt = project.createdAt || Date.now();
+      list.unshift(project);
+    }
+    delete project._isEdit;
+    lsSet(PROJECT_KEY, list);
+    return project;
+  }
+
+  async function deleteProject(id) {
+    if (await probeApi()) {
+      const r = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!r.ok) throw new Error('Delete failed');
+      return true;
+    }
+    lsSet(PROJECT_KEY, lsGet(PROJECT_KEY).filter(p => p.id !== id));
+    return true;
+  }
+
   async function login(username, password) {
     const r = await fetch(API_BASE + '/api/login', {
       method: 'POST',
@@ -289,6 +353,10 @@
     getPost,
     savePost,
     deletePost,
+    getProjects,
+    getProject,
+    saveProject,
+    deleteProject,
     login,
     logout,
     updateAccount,

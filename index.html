@@ -508,33 +508,11 @@
       <div class="section-header">
         <h2>RC Projects</h2>
         <p>Selected builds that taught me the most — from chassis redesigns to suspension geometry experiments.</p>
-      </div>
-      <div class="project-grid">
-        <div class="project-card">
-          <img src="assets/suspension.png" alt="Suspension project">
-          <div class="project-info">
-            <h3>Lightweight Suspension Overhaul</h3>
-            <p>Replaced stock arms and towers with CF-nylon topology-optimized parts. Reduced unsprung weight while increasing roll stiffness.</p>
-            <div class="project-tags">
-              <span class="tag">FEA</span>
-              <span class="tag">PA6-CF</span>
-              <span class="tag">1/10 Buggy</span>
-            </div>
-          </div>
-        </div>
-        <div class="project-card">
-          <img src="assets/parts.png" alt="Drivetrain project">
-          <div class="project-info">
-            <h3>Hybrid Diff &amp; Motor Mount</h3>
-            <p>Combined CNC aluminum and printed housings for a stronger, serviceable drivetrain that still fits the original chassis envelope.</p>
-            <div class="project-tags">
-              <span class="tag">Hybrid Mfg</span>
-              <span class="tag">CAD</span>
-              <span class="tag">Drivetrain</span>
-            </div>
-          </div>
+        <div style="margin-top:1.2rem;">
+          <a href="projects.html" class="btn btn-secondary" style="font-size:0.9rem; padding:0.55rem 1.1rem;">View all projects →</a>
         </div>
       </div>
+      <div class="project-grid" id="projectGrid"></div>
     </div>
   </section>
 
@@ -701,6 +679,38 @@
         link.style.color = 'var(--orange)';
       }
     }
+  </script>
+  <script>
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    (async function renderProjects() {
+      const grid = document.getElementById('projectGrid');
+      if (!grid || !window.RabitholeDB) return;
+      let projects = [];
+      try {
+        projects = await RabitholeDB.getProjects();
+      } catch (err) {
+        return;
+      }
+      if (projects.length === 0) return;
+
+      grid.innerHTML = projects.map(p => `
+        <div class="project-card">
+          <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.title)}">
+          <div class="project-info">
+            <h3>${escapeHtml(p.title)}</h3>
+            <p>${escapeHtml(p.description)}</p>
+            <div class="project-tags">
+              ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    })();
   </script>
 </body>
 </html>
