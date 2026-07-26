@@ -427,10 +427,24 @@
       el.textContent = text;
     }
 
-    function renderCheckout(product) {
+    async function renderCheckout(product) {
       const qtySelector = document.getElementById('qtySelector');
       const addBtn = document.getElementById('addToCartBtn');
       if (!addBtn) return;
+
+      if (window.RabitholeDB) {
+        try {
+          const storeStatus = await RabitholeDB.getStoreStatus();
+          if (storeStatus.salesPaused) {
+            qtySelector.style.display = 'none';
+            addBtn.style.display = 'none';
+            showCheckoutMsg('info', 'Online ordering is temporarily paused. Please check back soon!');
+            return;
+          }
+        } catch (err) {
+          // If the check itself fails, don't block a sale over it.
+        }
+      }
 
       if (product.status === 'Sold Out') {
         qtySelector.style.display = 'none';

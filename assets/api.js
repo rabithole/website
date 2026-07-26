@@ -293,6 +293,23 @@
     return (await probeApi()) ? 'database' : 'localStorage';
   }
 
+  // ---------- Store status (pause/resume all sales) ----------
+  async function getStoreStatus() {
+    const r = await fetch(API_BASE + '/api/store-status');
+    if (!r.ok) return { salesPaused: false };
+    return r.json();
+  }
+
+  async function updateStoreStatus(salesPaused) {
+    const r = await fetch(API_BASE + '/api/store-status', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ salesPaused }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not update store status');
+    return r.json();
+  }
+
   // ---------- PayPal checkout ----------
   async function getPaypalConfig() {
     const r = await fetch(API_BASE + '/api/paypal/config');
@@ -374,6 +391,8 @@
     storageMode,
     probeApi,
     getPaypalConfig,
+    getStoreStatus,
+    updateStoreStatus,
     createCartOrder,
     capturePaypalOrder,
     getOrders,

@@ -63,6 +63,11 @@
     const style = document.createElement('style');
     style.id = 'cartStyles';
     style.textContent = `
+      .sales-paused-banner {
+        background: #ffcf5c; color: #1a1200; text-align: center;
+        font-size: 0.85rem; font-weight: 600; padding: 0.55rem 1rem;
+        position: relative; z-index: 400;
+      }
       .cart-toggle-btn {
         position: relative; background: transparent; border: 1px solid var(--border);
         color: var(--text); border-radius: 999px; width: 38px; height: 38px;
@@ -311,9 +316,19 @@
 
   let paypalButtonsRendered = false;
   async function ensurePaypalButtons() {
-    if (paypalButtonsRendered) return;
     if (!window.RabitholeDB) return;
     const msg = document.getElementById('cartCheckoutMsg');
+    const ppContainer = document.getElementById('cartPaypalButtons');
+
+    const storeStatus = await RabitholeDB.getStoreStatus();
+    if (storeStatus.salesPaused) {
+      if (ppContainer) ppContainer.style.display = 'none';
+      msg.className = 'cart-msg info';
+      msg.textContent = 'Online ordering is temporarily paused. Please check back soon!';
+      return;
+    }
+
+    if (paypalButtonsRendered) return;
 
     const config = await RabitholeDB.getPaypalConfig();
     if (!config.configured) {
@@ -369,10 +384,25 @@
   }
 
   // ---------- Init ----------
+  async function showPauseBannerIfNeeded() {
+    if (!window.RabitholeDB) return;
+    try {
+      const status = await RabitholeDB.getStoreStatus();
+      if (!status.salesPaused) return;
+      const banner = document.createElement('div');
+      banner.className = 'sales-paused-banner';
+      banner.textContent = '⏸ Online ordering is temporarily paused. Browsing is still open — check back soon!';
+      document.body.prepend(banner);
+    } catch (err) {
+      // Not critical — worst case the banner just doesn't show.
+    }
+  }
+
   function init() {
     injectStyles();
     injectMarkup();
     updateBadge();
+    showPauseBannerIfNeeded();
     window.addEventListener('storage', (e) => {
       if (e.key === CART_KEY) {
         updateBadge();

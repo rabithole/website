@@ -112,8 +112,35 @@
     }
     .quick-links a:hover { color: var(--orange); }
 
+    .store-status {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      gap: 1rem; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem 1.4rem; margin-bottom: 2rem;
+    }
+    .store-status.paused { border-color: rgba(255, 180, 0, 0.4); }
+    .store-status-info { display: flex; align-items: center; gap: 0.8rem; }
+    .store-status-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #5ddea0; flex-shrink: 0;
+    }
+    .store-status.paused .store-status-dot { background: #ffcf5c; }
+    .store-status-text h2 { font-size: 1rem; margin-bottom: 0.15rem; }
+    .store-status-text p { color: var(--text-muted); font-size: 0.85rem; }
+    .btn-danger-outline {
+      background: transparent; border: 1.5px solid #ff6b6b; color: #ff6b6b;
+      padding: 0.65rem 1.15rem; border-radius: 9px; font-weight: 600; font-size: 0.9rem;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .btn-danger-outline:hover { background: rgba(255,107,107,0.12); }
+    .btn-resume {
+      background: #5ddea0; border: none; color: #07200f;
+      padding: 0.65rem 1.15rem; border-radius: 9px; font-weight: 600; font-size: 0.9rem;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .btn-resume:hover { background: #4bc98d; }
+
     @media (max-width: 640px) {
       .grid, .stats { grid-template-columns: 1fr; }
+      .store-status { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
@@ -137,6 +164,17 @@
     <div class="welcome">
       <h1>Owner Dashboard</h1>
       <p>Manage your products and blog posts. Only you can see this page.</p>
+    </div>
+
+    <div class="store-status" id="storeStatus">
+      <div class="store-status-info">
+        <span class="store-status-dot"></span>
+        <div class="store-status-text">
+          <h2 id="storeStatusHeading">Sales are live</h2>
+          <p id="storeStatusSub">Customers can check out normally.</p>
+        </div>
+      </div>
+      <button id="storeStatusToggle" class="btn-danger-outline">Stop All Sales</button>
     </div>
 
     <div class="stats" id="stats">
@@ -246,6 +284,51 @@
         document.getElementById('orderCount').textContent = '0';
       }
     })();
+
+    // Store status (pause/resume all sales)
+    function renderStoreStatus(salesPaused) {
+      const card = document.getElementById('storeStatus');
+      const heading = document.getElementById('storeStatusHeading');
+      const sub = document.getElementById('storeStatusSub');
+      const toggle = document.getElementById('storeStatusToggle');
+      card.classList.toggle('paused', salesPaused);
+      if (salesPaused) {
+        heading.textContent = 'Sales are paused';
+        sub.textContent = 'Checkout is blocked site-wide — customers see a notice and can\'t buy.';
+        toggle.textContent = 'Resume Sales';
+        toggle.className = 'btn-resume';
+      } else {
+        heading.textContent = 'Sales are live';
+        sub.textContent = 'Customers can check out normally.';
+        toggle.textContent = 'Stop All Sales';
+        toggle.className = 'btn-danger-outline';
+      }
+    }
+
+    (async function loadStoreStatus() {
+      if (!window.RabitholeDB) return;
+      try {
+        const status = await RabitholeDB.getStoreStatus();
+        renderStoreStatus(status.salesPaused);
+      } catch {
+        // Leave the default "live" rendering in place.
+      }
+    })();
+
+    document.getElementById('storeStatusToggle').addEventListener('click', async () => {
+      const currentlyPaused = document.getElementById('storeStatus').classList.contains('paused');
+      const next = !currentlyPaused;
+      const confirmMsg = next
+        ? 'Stop all sales? Customers will be blocked from checking out site-wide until you resume.'
+        : 'Resume sales? Customers will be able to check out again immediately.';
+      if (!confirm(confirmMsg)) return;
+      try {
+        const result = await RabitholeDB.updateStoreStatus(next);
+        renderStoreStatus(result.salesPaused);
+      } catch (err) {
+        alert('Could not update store status: ' + err.message);
+      }
+    });
   </script>
 </body>
 </html>

@@ -30,6 +30,9 @@ API:
                                                        line item belonging to that order
     POST /api/upload                      (Authorization: Bearer <token>) upload a product image
                                            (raw image bytes as the body, Content-Type: image/png|jpeg|webp|gif)
+    GET  /api/store-status                public — {salesPaused: bool}
+    PUT  /api/store-status                (Authorization: Bearer <token>) {salesPaused: bool} —
+                                           pause/resume all checkout site-wide
 
 Default owner account (seeded in DB):
     username: admin
@@ -161,6 +164,19 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def get_setting(conn, key, default=None):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(conn, key, value):
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
 
 
 def hash_password(password: str, salt: str):
@@ -367,6 +383,12 @@ class Handler(SimpleHTTPRequestHandler):
                 }
             )
 
+        if path == "/api/store-status":
+            conn = get_db()
+            sales_paused = get_setting(conn, "sales_paused", "0") == "1"
+            conn.close()
+            return self._send_json({"salesPaused": sales_paused})
+
         if path == "/api/orders":
             if not self._require_auth():
                 return
@@ -468,6 +490,14 @@ class Handler(SimpleHTTPRequestHandler):
 
         # --- PayPal: create order for a cart (amounts always looked up server-side) ---
         if path == "/api/paypal/orders":
+            status_conn = get_db()
+            sales_paused = get_setting(status_conn, "sales_paused", "0") == "1"
+            status_conn.close()
+            if sales_paused:
+                return self._send_json(
+                    {"error": "Online ordering is temporarily paused. Please check back soon."}, 503
+                )
+
             config = load_paypal_config()
             if not config["client_id"] or not config["secret"]:
                 return self._send_json(
@@ -822,6 +852,17 @@ class Handler(SimpleHTTPRequestHandler):
         data = self._read_json()
         now = int(time.time() * 1000)
 
+        if path == "/api/store-status":
+            if not self._require_auth():
+                return
+            if "salesPaused" not in data:
+                return self._send_json({"error": "salesPaused is required"}, 400)
+            conn = get_db()
+            set_setting(conn, "sales_paused", "1" if data["salesPaused"] else "0")
+            conn.commit()
+            conn.close()
+            return self._send_json({"salesPaused": bool(data["salesPaused"])})
+
         if path == "/api/me":
             user = self._require_auth()
             if not user:
@@ -1104,6 +1145,12 @@ def main():
     product_cols = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
     if "shipping_info" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN shipping_info TEXT")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )"""
+    )
     conn.execute(
         """CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
