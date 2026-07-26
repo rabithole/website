@@ -50,11 +50,6 @@
     }
     .nav-links a:hover { color: var(--orange); }
     .nav-links a.active { color: var(--orange); }
-    .nav-cta {
-      background: var(--orange); color: #fff !important; padding: 0.42rem 0.95rem;
-      border-radius: 8px; font-weight: 600;
-    }
-    .nav-cta:hover { background: var(--orange-dim); }
 
     .container { max-width: 1100px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
 
@@ -237,7 +232,6 @@
         <a href="products.html" class="active">Shop</a>
         <a href="blog.html">Blog</a>
         <a href="projects.html">Projects</a>
-        <a href="login.html" class="nav-cta" id="navAdminLink">Owner</a>
       </div>
     </div>
   </nav>
@@ -496,13 +490,6 @@
         await showDetail(window.location.hash.slice(9));
       }
     })();
-
-    // Auth-aware UI
-    const isOwner = sessionStorage.getItem('rabithole_auth') === '1';
-    if (isOwner) {
-      const navLink = document.getElementById('navAdminLink');
-      if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
-    }
 
   </script>
 </body>

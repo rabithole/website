@@ -337,7 +337,6 @@
         <li><a href="#education">Education</a></li>
         <li><a href="blog.html">Blog</a></li>
         <li><a href="#contact" class="nav-cta">Contact</a></li>
-        <li><a href="login.html" id="navOwnerLink" style="font-size:0.8rem; opacity:0.5;">Owner</a></li>
       </ul>
       <button class="menu-toggle" aria-label="Menu">☰</button>
     </div>
@@ -668,17 +667,6 @@
         links.style.zIndex = '1001';
       }
     });
-  </script>
-  <script>
-    if (sessionStorage.getItem('rabithole_auth') === '1') {
-      const link = document.getElementById('navOwnerLink');
-      if (link) {
-        link.href = 'admin.html';
-        link.textContent = 'Dashboard';
-        link.style.opacity = '1';
-        link.style.color = 'var(--orange)';
-      }
-    }
   </script>
   <script>
     function escapeHtml(str) {

@@ -46,11 +46,6 @@
     .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
     .nav-links a:hover { color: var(--orange); }
     .nav-links a.active { color: var(--orange); }
-    .nav-cta {
-      background: var(--orange); color: #fff !important; padding: 0.42rem 0.95rem;
-      border-radius: 8px; font-weight: 600;
-    }
-    .nav-cta:hover { background: var(--orange-dim); }
 
     .container { max-width: 1000px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
     .page-header { margin-bottom: 1.8rem; }
@@ -98,7 +93,6 @@
         <a href="products.html">Shop</a>
         <a href="blog.html">Blog</a>
         <a href="projects.html" class="active">Projects</a>
-        <a href="login.html" class="nav-cta" id="navAdminLink">Owner</a>
       </div>
     </div>
   </nav>
@@ -152,11 +146,6 @@
           </div>
         </div>
       `).join('');
-    }
-
-    if (sessionStorage.getItem('rabithole_auth') === '1') {
-      const navLink = document.getElementById('navAdminLink');
-      if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
     }
 
     render();
