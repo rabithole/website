@@ -217,6 +217,24 @@
       return `${o.items[0].productName || 'Item'} + ${o.items.length - 1} more`;
     }
 
+    function buildShipNotifyMailto(o) {
+      const itemLines = o.items.map(li => '- ' + (li.productName || li.productId || 'Item')).join('\n');
+      const greeting = o.payerName ? `Hi ${o.payerName},` : 'Hi,';
+      const body = `${greeting}\n\nYour Rabithole order has shipped!\n\nTracking number: ${o.trackingNumber}\n\nItems:\n${itemLines}\n\nThanks for your order!`;
+      const subject = 'Your Rabithole order has shipped';
+      return `mailto:${encodeURIComponent(o.payerEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
+    function notifyButtonHtml(o) {
+      if (!o.payerEmail) {
+        return '<span class="hint">No customer email on file — can\'t notify.</span>';
+      }
+      if (!o.trackingNumber) {
+        return '<span class="hint">Add a tracking number to notify the customer.</span>';
+      }
+      return `<a class="btn-view" href="${buildShipNotifyMailto(o)}">✉ Notify Customer (Shipped)</a>`;
+    }
+
     async function load() {
       const wrap = document.getElementById('ordersTableWrap');
       if (!window.RabitholeDB) {
@@ -328,6 +346,9 @@
                 <label>Tracking Number</label>
                 <input type="text" class="tracking-input" style="width:100%;" value="${o.trackingNumber || ''}" placeholder="Paste tracking #" onblur="handleTrackingChange('${o.paypalOrderId}', this)">
               </div>
+              <div>
+                ${notifyButtonHtml(o)}
+              </div>
             </div>
           </div>
         </div>
@@ -372,6 +393,11 @@
 
     document.getElementById('backBtn').addEventListener('click', showList);
 
+    function isDetailOpenFor(paypalOrderId) {
+      return document.getElementById('orderView').style.display === 'block'
+        && window.location.hash === '#order=' + encodeURIComponent(paypalOrderId);
+    }
+
     window.handleStatusChange = async function (paypalOrderId, selectEl) {
       selectEl.disabled = true;
       const newStatus = selectEl.value;
@@ -380,6 +406,7 @@
         const o = ORDERS.find(x => x.paypalOrderId === paypalOrderId);
         if (o) o.fulfillmentStatus = newStatus;
         selectEl.className = 'fulfillment-select ' + newStatus;
+        if (isDetailOpenFor(paypalOrderId)) showOrder(paypalOrderId);
       } catch (err) {
         alert('Could not update order: ' + err.message);
       } finally {
@@ -396,6 +423,7 @@
         const o = ORDERS.find(x => x.paypalOrderId === paypalOrderId);
         if (o) o.trackingNumber = value;
         inputEl.defaultValue = value;
+        if (isDetailOpenFor(paypalOrderId)) showOrder(paypalOrderId);
       } catch (err) {
         alert('Could not save tracking number: ' + err.message);
       } finally {
