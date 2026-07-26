@@ -78,6 +78,7 @@ ALLOWED_STATIC_FILES = {
     "/add-product.html",
     "/create-post.html",
     "/manage-products.html",
+    "/manage-posts.html",
 }
 ALLOWED_STATIC_PREFIXES = ("/assets/",)
 

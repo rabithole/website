@@ -132,28 +132,6 @@
     }
     .article-tags { margin-top: 1.8rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
-    .actions-bar {
-      display: flex; gap: 0.7rem; margin-top: 1.7rem; flex-wrap: wrap;
-    }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.35rem;
-      padding: 0.65rem 1.15rem; border-radius: 9px; font-weight: 600;
-      font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer;
-      transition: all 0.2s; font-family: inherit;
-    }
-    .btn-primary { background: var(--orange); color: #fff; }
-    .btn-primary:hover { background: var(--orange-dim); }
-    .btn-secondary {
-      background: transparent; color: var(--text); border: 1.5px solid var(--border);
-    }
-    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
-    .btn-danger {
-      background: transparent; color: #ff8a8a; border: 1px solid rgba(255,100,100,0.35);
-      font-size: 0.85rem; padding: 0.5rem 0.9rem;
-    }
-    .btn-danger:hover { background: rgba(220,60,60,0.12); }
-
     @media (max-width: 600px) {
       .page-header { flex-direction: column; align-items: flex-start; }
       .article { padding: 1.4rem 1.15rem; }
@@ -206,12 +184,7 @@
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
       catch { return []; }
     }
-    async function removePost(id) {
-      if (window.RabitholeDB) return RabitholeDB.deletePost(id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify((await loadPosts()).filter(p => p.id !== id)));
-    }
-
-    function ensureSeedPosts() {
+function ensureSeedPosts() {
       if (localStorage.getItem(STORAGE_KEY)) return;
       const seeds = [
         {
@@ -320,10 +293,6 @@
         <h1>${escapeHtml(post.title)}</h1>
         <div class="article-body">${escapeHtml(post.content)}</div>
         <div class="article-tags">${tagsHtml}</div>
-        <div class="actions-bar">
-          <a href="create-post.html?id=${post.id}" class="btn btn-secondary">Edit Post</a>
-          <button class="btn btn-danger" onclick="deletePost('${post.id}')">Delete</button>
-        </div>
       `;
 
       history.replaceState(null, '', '#post=' + id);
@@ -337,12 +306,6 @@
       renderList();
     }
 
-    async function deletePost(id) {
-      if (!confirm('Delete this post permanently? This cannot be undone.')) return;
-      await removePost(id);
-      showList();
-    }
-
     document.getElementById('backBtn').addEventListener('click', showList);
 
     // Init
@@ -353,23 +316,10 @@
       if (window.location.hash.startsWith('#post=')) await showPost(window.location.hash.slice(6));
     })();
 
-    // Deep link
-    
-    const isOwner = sessionStorage.getItem('rabithole_auth') === '1';
-    if (isOwner) {
+    if (sessionStorage.getItem('rabithole_auth') === '1') {
       const navLink = document.getElementById('navAdminLink');
       if (navLink) { navLink.href = 'admin.html'; navLink.textContent = 'Dashboard'; }
     }
-
-    const _origShowPost = showPost;
-    showPost = function(id) {
-      _origShowPost(id);
-      if (!isOwner) {
-        const actions = document.querySelector('.actions-bar');
-        if (actions) actions.innerHTML = '';
-      }
-    };
-
   </script>
 </body>
 </html>

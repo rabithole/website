@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Posts — Rabithole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080a;
+      --bg-card: #111318;
+      --orange: #ff6b00;
+      --orange-dim: #e05e00;
+      --cyan: #00d4ff;
+      --text: #f0f2f5;
+      --text-muted: #9aa3b2;
+      --border: #2a2f3a;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(7,8,10,0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
+    .logo img { height: 36px; border-radius: 6px; }
+    .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
+    .logo-text span { color: var(--orange); }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--orange); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 2.2rem 1.5rem 4rem; }
+    .page-head {
+      display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap;
+      gap: 1rem; margin-bottom: 1.8rem;
+    }
+    .page-title { font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem; }
+    .page-sub { color: var(--text-muted); font-size: 0.98rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.7rem 1.2rem; border-radius: 9px; font-weight: 600;
+      font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dim); }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left; padding: 0.75rem 1rem; font-size: 0.88rem;
+      border-bottom: 1px solid var(--border); vertical-align: middle;
+    }
+    th { color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    tr:last-child td { border-bottom: none; }
+
+    .post-title { font-weight: 600; }
+    .tag {
+      background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
+      color: var(--cyan); font-size: 0.7rem; font-weight: 600;
+      padding: 0.16rem 0.48rem; border-radius: 5px; display: inline-block; margin: 0.1rem 0.2rem 0.1rem 0;
+    }
+
+    .row-actions { display: flex; gap: 0.6rem; }
+    .btn-edit, .btn-delete {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.78rem; cursor: pointer;
+      font-family: inherit; text-decoration: none;
+    }
+    .btn-edit:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1.5rem;
+      background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 700px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { border-bottom: 1px solid var(--border); padding: 0.6rem 0; }
+      td { border: none; padding: 0.35rem 1rem; }
+      td::before { content: attr(data-label); color: var(--text-muted); display: block; font-size: 0.72rem; margin-bottom: 0.15rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="Rabithole">
+        <span class="logo-text">Rabi<span>thole</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="admin.html">Dashboard</a>
+        <a href="blog.html">Blog</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Manage Posts</h1>
+        <p class="page-sub">Write new posts, edit existing ones, or remove them.</p>
+      </div>
+      <a href="create-post.html" class="btn btn-primary">+ Write Post</a>
+    </div>
+
+    <div id="postsTableWrap"></div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script>
+    if (sessionStorage.getItem('rabithole_auth') !== '1') {
+      window.location.href = 'login.html';
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    async function load() {
+      const wrap = document.getElementById('postsTableWrap');
+      if (!window.RabitholeDB) {
+        wrap.innerHTML = '<div class="empty-state">Managing posts requires the database server to be running.</div>';
+        return;
+      }
+      let posts;
+      try {
+        posts = await RabitholeDB.getPosts();
+      } catch (err) {
+        wrap.innerHTML = `<div class="empty-state">Could not load posts: ${err.message}</div>`;
+        return;
+      }
+
+      posts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (posts.length === 0) {
+        wrap.innerHTML = '<div class="empty-state">No posts yet.</div>';
+        return;
+      }
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Date</th>
+              <th>Tags</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${posts.map(p => `
+              <tr data-post-id="${p.id}">
+                <td data-label="Title"><span class="post-title">${escapeHtml(p.title)}</span></td>
+                <td data-label="Date">${formatDate(p.date)}</td>
+                <td data-label="Tags">${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
+                <td data-label="">
+                  <div class="row-actions">
+                    <a class="btn-edit" href="create-post.html?id=${encodeURIComponent(p.id)}">Edit</a>
+                    <button class="btn-delete" onclick="handleDelete('${p.id}')">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    window.handleDelete = async function (id) {
+      if (!confirm('Delete this post permanently? This cannot be undone.')) return;
+      try {
+        await RabitholeDB.deletePost(id);
+        const row = document.querySelector(`tr[data-post-id="${id}"]`);
+        if (row) row.remove();
+        const remaining = document.querySelectorAll('tr[data-post-id]').length;
+        if (remaining === 0) load();
+      } catch (err) {
+        alert('Could not delete post: ' + err.message);
+      }
+    };
+
+    load();
+  </script>
+</body>
+</html>
