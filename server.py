@@ -236,12 +236,18 @@ def row_to_project(row):
         tags = json.loads(tags) if tags else []
     except Exception:
         tags = []
+    images = row["images"] if "images" in row.keys() else None
+    try:
+        images = json.loads(images) if images else []
+    except Exception:
+        images = []
     return {
         "id": row["id"],
         "title": row["title"],
         "description": row["description"],
         "content": row["content"],
         "image": row["image"],
+        "images": images,
         "tags": tags,
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
@@ -904,16 +910,20 @@ class Handler(SimpleHTTPRequestHandler):
             tags = data.get("tags", [])
             if isinstance(tags, list):
                 tags = json.dumps(tags)
+            images = data.get("images", [])
+            if isinstance(images, list):
+                images = json.dumps(images)
             conn = get_db()
             conn.execute(
                 """INSERT INTO projects
-                   (id, title, description, image, tags, content, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                   (id, title, description, image, images, tags, content, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     data["description"],
                     data.get("image") or "",
+                    images,
                     tags,
                     data.get("content") or None,
                     data.get("createdAt", now),
@@ -1099,6 +1109,9 @@ class Handler(SimpleHTTPRequestHandler):
             tags = data.get("tags", [])
             if isinstance(tags, list):
                 tags = json.dumps(tags)
+            images = data.get("images", [])
+            if isinstance(images, list):
+                images = json.dumps(images)
             conn = get_db()
             existing = conn.execute(
                 "SELECT id FROM projects WHERE id = ?", (pid,)
@@ -1107,11 +1120,12 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
-                "UPDATE projects SET title=?, description=?, image=?, tags=?, content=?, updated_at=? WHERE id=?",
+                "UPDATE projects SET title=?, description=?, image=?, images=?, tags=?, content=?, updated_at=? WHERE id=?",
                 (
                     data["title"],
                     data["description"],
                     data.get("image") or "",
+                    images,
                     tags,
                     data.get("content") or None,
                     now,
@@ -1345,6 +1359,8 @@ def main():
     project_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if "content" not in project_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN content TEXT")
+    if "images" not in project_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN images TEXT NOT NULL DEFAULT '[]'")
     post_cols = [r[1] for r in conn.execute("PRAGMA table_info(posts)").fetchall()]
     if post_cols and "image" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN image TEXT")
