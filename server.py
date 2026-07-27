@@ -237,6 +237,7 @@ def row_to_project(row):
         "id": row["id"],
         "title": row["title"],
         "description": row["description"],
+        "content": row["content"],
         "image": row["image"],
         "tags": tags,
         "createdAt": row["created_at"],
@@ -882,14 +883,15 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO projects
-                   (id, title, description, image, tags, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?)""",
+                   (id, title, description, image, tags, content, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     data["description"],
                     data.get("image", "assets/suspension.png"),
                     tags,
+                    data.get("content") or None,
                     data.get("createdAt", now),
                     None,
                 ),
@@ -1080,8 +1082,16 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
-                "UPDATE projects SET title=?, description=?, image=?, tags=?, updated_at=? WHERE id=?",
-                (data["title"], data["description"], data.get("image", "assets/suspension.png"), tags, now, pid),
+                "UPDATE projects SET title=?, description=?, image=?, tags=?, content=?, updated_at=? WHERE id=?",
+                (
+                    data["title"],
+                    data["description"],
+                    data.get("image", "assets/suspension.png"),
+                    tags,
+                    data.get("content") or None,
+                    now,
+                    pid,
+                ),
             )
             conn.commit()
             row = conn.execute(
@@ -1303,11 +1313,14 @@ def main():
             updated_at INTEGER
         )"""
     )
+    project_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    if "content" not in project_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN content TEXT")
     if conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0:
         seed_now = int(time.time() * 1000)
         conn.execute(
-            """INSERT INTO projects (id, title, description, image, tags, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?)""",
+            """INSERT INTO projects (id, title, description, image, tags, content, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
             (
                 "project-1",
                 "Lightweight Suspension Overhaul",
@@ -1315,13 +1328,20 @@ def main():
                 "Reduced unsprung weight while increasing roll stiffness.",
                 "assets/suspension.png",
                 json.dumps(["FEA", "PA6-CF", "1/10 Buggy"]),
+                "The stock suspension arms on my 1/10 buggy were solid plastic — heavy, and "
+                "not particularly stiff where it mattered.\n\n"
+                "I ran a quick topology optimization pass in Fusion 360 with load cases for "
+                "bump, cornering, and braking, then printed the result in PA6-CF (carbon-fiber "
+                "reinforced nylon).\n\n"
+                "Results after a full race weekend: noticeably crisper turn-in, no cracking, "
+                "and about 18% less unsprung weight per corner versus the stock arms.",
                 seed_now,
                 None,
             ),
         )
         conn.execute(
-            """INSERT INTO projects (id, title, description, image, tags, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?)""",
+            """INSERT INTO projects (id, title, description, image, tags, content, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
             (
                 "project-2",
                 "Hybrid Diff & Motor Mount",
@@ -1329,6 +1349,13 @@ def main():
                 "drivetrain that still fits the original chassis envelope.",
                 "assets/parts.png",
                 json.dumps(["Hybrid Mfg", "CAD", "Drivetrain"]),
+                "Pure-printed drivetrain housings kept stripping under load, so this build "
+                "mixes CNC aluminum inserts at the high-stress interfaces with printed "
+                "housings everywhere else.\n\n"
+                "The aluminum carries the bearing loads and motor mount screws; the printed "
+                "shell handles everything else and keeps the whole assembly serviceable — "
+                "no more replacing an entire metal housing over one worn bearing seat.\n\n"
+                "Fits the stock chassis envelope with no cutting required.",
                 seed_now - 1,
                 None,
             ),

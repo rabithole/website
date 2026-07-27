@@ -197,8 +197,13 @@
         </div>
 
         <div class="form-group">
-          <label for="description">Description</label>
-          <textarea id="description" name="description" placeholder="What did you build or redesign? What problem were you solving, and what did you learn?" required></textarea>
+          <label for="description">Short Description</label>
+          <textarea id="description" name="description" placeholder="One or two sentences — shown on the homepage and project grid." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="content">Full Write-Up <span class="optional">(optional)</span></label>
+          <textarea id="content" name="content" placeholder="The full story — problem, process, materials, what you'd do differently. Shown on the project's own detail page. Leave blank to just show the short description there instead." style="min-height:220px;"></textarea>
         </div>
 
         <div class="form-group">
@@ -321,6 +326,7 @@
         document.getElementById('submitBtn').textContent = 'Save Changes';
         document.getElementById('title').value = editing.title;
         document.getElementById('description').value = editing.description;
+        document.getElementById('content').value = editing.content || '';
         document.getElementById('tags').value = (editing.tags || []).join(', ');
         document.getElementById('image').value = editing.image;
         const presets = document.querySelectorAll('.image-option[data-src]');
@@ -339,6 +345,7 @@
       e.preventDefault();
       const title = document.getElementById('title').value.trim();
       const description = document.getElementById('description').value.trim();
+      const content = document.getElementById('content').value.trim();
       const tagsRaw = document.getElementById('tags').value.trim();
       const image = document.getElementById('image').value;
       const statusEl = document.getElementById('statusMsg');
@@ -358,7 +365,7 @@
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const project = {
         id: editing ? editing.id : undefined,
-        title, description, tags, image,
+        title, description, content, tags, image,
         _isEdit: !!editing,
       };
 
