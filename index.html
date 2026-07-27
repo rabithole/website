@@ -208,6 +208,10 @@
     .project-card img {
       width: 100%; height: 100%; object-fit: cover; min-height: 180px;
     }
+    .project-card .img-placeholder {
+      width: 100%; height: 100%; min-height: 180px; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 0.85rem; background: #0c0d10;
+    }
     .project-info { padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; }
     .project-info h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
     .project-info p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.9rem; }
@@ -688,7 +692,7 @@
 
       grid.innerHTML = projects.map(p => `
         <a class="project-card" href="projects.html#project=${encodeURIComponent(p.id)}">
-          <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.title)}">
+          ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.title)}">` : '<div class="img-placeholder">No Image</div>'}
           <div class="project-info">
             <h3>${escapeHtml(p.title)}</h3>
             <p>${escapeHtml(p.description)}</p>

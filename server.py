@@ -34,7 +34,9 @@ API:
     PUT  /api/store-status                (Authorization: Bearer <token>) {salesPaused: bool} —
                                            pause/resume all checkout site-wide
     POST /api/requests                    public — {name, email, serviceType, description,
-                                           budget, timeline} submit a custom work request
+                                           budget, timeline, photo} submit a custom work request
+    POST /api/requests/upload             public — upload a reference photo for a work request
+                                           (raw image bytes as the body, Content-Type: image/png|jpeg|webp|gif)
     GET  /api/requests                    (Authorization: Bearer <token>) list all requests
     PUT  /api/requests/<id>                (Authorization: Bearer <token>) update status
     DELETE /api/requests/<id>              (Authorization: Bearer <token>) delete a request
@@ -221,6 +223,7 @@ def row_to_post(row):
         "title": row["title"],
         "tags": tags,
         "content": row["content"],
+        "image": row["image"],
         "date": row["date"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
@@ -254,6 +257,7 @@ def row_to_request(row):
         "description": row["description"],
         "budget": row["budget"],
         "timeline": row["timeline"],
+        "photo": row["photo"],
         "status": row["status"],
         "createdAt": row["created_at"],
     }
@@ -517,6 +521,25 @@ class Handler(SimpleHTTPRequestHandler):
             body = self.rfile.read(length)
             UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
             filename = f"upload-{int(time.time() * 1000)}-{secrets.token_hex(4)}.{ext}"
+            (UPLOADS_DIR / filename).write_bytes(body)
+            return self._send_json({"path": f"assets/uploads/{filename}"}, 201)
+
+        # --- Upload a reference photo for a custom work request (public, no auth) ---
+        if path == "/api/requests/upload":
+            content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            ext = UPLOAD_CONTENT_TYPES.get(content_type)
+            if not ext:
+                return self._send_json(
+                    {"error": "Unsupported image type. Use PNG, JPG, WEBP, or GIF."}, 400
+                )
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0:
+                return self._send_json({"error": "Empty upload"}, 400)
+            if length > MAX_UPLOAD_BYTES:
+                return self._send_json({"error": "Image too large (max 8MB)"}, 413)
+            body = self.rfile.read(length)
+            UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            filename = f"request-{int(time.time() * 1000)}-{secrets.token_hex(4)}.{ext}"
             (UPLOADS_DIR / filename).write_bytes(body)
             return self._send_json({"path": f"assets/uploads/{filename}"}, 201)
 
@@ -826,7 +849,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data["category"],
                     data.get("status", "Available"),
                     data["description"],
-                    data.get("image", "assets/suspension.png"),
+                    data.get("image") or "",
                     data.get("shippingInfo") or None,
                     stock_quantity,
                     data.get("createdAt", now),
@@ -852,13 +875,14 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO posts
-                   (id, title, tags, content, date, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?)""",
+                   (id, title, tags, content, image, date, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     tags,
                     data["content"],
+                    data.get("image") or None,
                     data.get("date", time.strftime("%Y-%m-%d")),
                     data.get("createdAt", now),
                     None,
@@ -889,7 +913,7 @@ class Handler(SimpleHTTPRequestHandler):
                     pid,
                     data["title"],
                     data["description"],
-                    data.get("image", "assets/suspension.png"),
+                    data.get("image") or "",
                     tags,
                     data.get("content") or None,
                     data.get("createdAt", now),
@@ -918,8 +942,8 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO requests
-                   (id, name, email, service_type, description, budget, timeline, status, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                   (id, name, email, service_type, description, budget, timeline, photo, status, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (
                     rid,
                     name,
@@ -928,6 +952,7 @@ class Handler(SimpleHTTPRequestHandler):
                     description,
                     (data.get("budget") or "").strip() or None,
                     (data.get("timeline") or "").strip() or None,
+                    (data.get("photo") or "").strip() or None,
                     "New",
                     now,
                 ),
@@ -1028,7 +1053,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data["category"],
                     data.get("status", "Available"),
                     data["description"],
-                    data.get("image", "assets/suspension.png"),
+                    data.get("image") or "",
                     data.get("shippingInfo") or None,
                     stock_quantity,
                     now,
@@ -1057,8 +1082,8 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
-                "UPDATE posts SET title=?, tags=?, content=?, updated_at=? WHERE id=?",
-                (data["title"], tags, data["content"], now, pid),
+                "UPDATE posts SET title=?, tags=?, content=?, image=?, updated_at=? WHERE id=?",
+                (data["title"], tags, data["content"], data.get("image") or None, now, pid),
             )
             conn.commit()
             row = conn.execute(
@@ -1086,7 +1111,7 @@ class Handler(SimpleHTTPRequestHandler):
                 (
                     data["title"],
                     data["description"],
-                    data.get("image", "assets/suspension.png"),
+                    data.get("image") or "",
                     tags,
                     data.get("content") or None,
                     now,
@@ -1298,10 +1323,14 @@ def main():
             description TEXT NOT NULL,
             budget TEXT,
             timeline TEXT,
+            photo TEXT,
             status TEXT NOT NULL DEFAULT 'New',
             created_at INTEGER NOT NULL
         )"""
     )
+    request_cols = [r[1] for r in conn.execute("PRAGMA table_info(requests)").fetchall()]
+    if "photo" not in request_cols:
+        conn.execute("ALTER TABLE requests ADD COLUMN photo TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
@@ -1316,6 +1345,9 @@ def main():
     project_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if "content" not in project_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN content TEXT")
+    post_cols = [r[1] for r in conn.execute("PRAGMA table_info(posts)").fetchall()]
+    if post_cols and "image" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN image TEXT")
     if conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0:
         seed_now = int(time.time() * 1000)
         conn.execute(

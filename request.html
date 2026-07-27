@@ -93,6 +93,21 @@
 
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
+    .photo-upload {
+      width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      overflow: hidden; background: var(--bg); transition: border-color 0.2s;
+    }
+    .photo-upload:hover { border-color: var(--cyan); }
+    .photo-upload img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-upload span { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 0.4rem; }
+    .photo-upload.uploading { opacity: 0.6; pointer-events: none; }
+    .clear-image-btn {
+      margin-top: 0.6rem; background: none; border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; font-family: inherit;
+    }
+    .clear-image-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
     .actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center; }
     .btn {
       display: inline-flex; align-items: center; gap: 0.4rem;
@@ -197,6 +212,19 @@
           <textarea id="description" name="description" placeholder="What are you trying to build? Include specs, references, files you already have, or anything else useful." required></textarea>
         </div>
 
+        <div class="form-group">
+          <label>Reference Photo <span class="optional">(optional)</span></label>
+          <div class="photo-upload" id="photoUpload">
+            <img id="photoPreview" style="display:none;">
+            <span id="photoPlaceholder">+ Add Photo</span>
+          </div>
+          <input type="file" id="photoFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <button type="button" class="clear-image-btn" id="photoRemoveBtn" style="display:none;">✕ Remove Photo</button>
+          <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB. A sketch, reference, or photo of what you want built/repaired.</div>
+          <div id="photoStatus" class="hint"></div>
+          <input type="hidden" id="photo" name="photo" value="">
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="budget">Budget <span class="optional">(optional)</span></label>
@@ -219,6 +247,71 @@
 
   <script src="assets/api.js"></script>
   <script>
+    // ---------- Reference photo upload ----------
+    const photoUpload = document.getElementById('photoUpload');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoPlaceholder = document.getElementById('photoPlaceholder');
+    const photoFileInput = document.getElementById('photoFileInput');
+    const photoRemoveBtn = document.getElementById('photoRemoveBtn');
+    const photoStatus = document.getElementById('photoStatus');
+    const photoField = document.getElementById('photo');
+
+    photoUpload.addEventListener('click', () => photoFileInput.click());
+
+    function clearPhoto() {
+      photoFileInput.value = '';
+      photoPreview.src = '';
+      photoPreview.style.display = 'none';
+      photoPlaceholder.style.display = 'block';
+      photoRemoveBtn.style.display = 'none';
+      photoStatus.textContent = '';
+      photoField.value = '';
+    }
+
+    photoRemoveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearPhoto();
+    });
+
+    photoFileInput.addEventListener('change', async () => {
+      const file = photoFileInput.files[0];
+      if (!file) return;
+
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(file.type)) {
+        photoStatus.textContent = 'Unsupported file type. Use PNG, JPG, WEBP, or GIF.';
+        photoFileInput.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        photoStatus.textContent = 'Image is too large (max 8MB).';
+        photoFileInput.value = '';
+        return;
+      }
+      if (!window.RabitholeDB) {
+        photoStatus.textContent = 'Uploading requires the database server to be running.';
+        photoFileInput.value = '';
+        return;
+      }
+
+      photoStatus.textContent = 'Uploading…';
+      photoUpload.classList.add('uploading');
+      try {
+        const result = await RabitholeDB.uploadRequestPhoto(file);
+        photoField.value = result.path;
+        photoPreview.src = result.path;
+        photoPreview.style.display = 'block';
+        photoPlaceholder.style.display = 'none';
+        photoRemoveBtn.style.display = 'inline-block';
+        photoStatus.textContent = 'Uploaded.';
+      } catch (err) {
+        photoStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
+        photoFileInput.value = '';
+      } finally {
+        photoUpload.classList.remove('uploading');
+      }
+    });
+
     document.getElementById('requestForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const name = document.getElementById('name').value.trim();
@@ -227,6 +320,7 @@
       const description = document.getElementById('description').value.trim();
       const budget = document.getElementById('budget').value.trim();
       const timeline = document.getElementById('timeline').value.trim();
+      const photo = photoField.value || '';
       const statusEl = document.getElementById('statusMsg');
       const submitBtn = document.getElementById('submitBtn');
 
@@ -244,10 +338,11 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Sending…';
       try {
-        await RabitholeDB.submitRequest({ name, email, serviceType, description, budget, timeline });
+        await RabitholeDB.submitRequest({ name, email, serviceType, description, budget, timeline, photo });
         statusEl.className = 'status success';
         statusEl.textContent = 'Request sent! I\'ll get back to you at ' + email + ' soon.';
         document.getElementById('requestForm').reset();
+        clearPhoto();
         submitBtn.textContent = 'Send Request';
       } catch (err) {
         statusEl.className = 'status error';

@@ -135,7 +135,6 @@
         <div id="error" class="error"></div>
       </form>
 
-      <p class="hint">Default account: <strong>admin</strong> / <strong>rabithole</strong></p>
       <p class="mode" id="modeHint"></p>
     </div>
   </div>
@@ -161,8 +160,8 @@
 
     // Probe if server/API is available
     fetch('/api/products')
-      .then(r => { modeHint.textContent = r.ok ? 'Connected to database server' : 'Server offline — using local fallback'; })
-      .catch(() => { modeHint.textContent = 'Server offline — using local fallback'; });
+      .then(r => { modeHint.textContent = r.ok ? 'Connected to database server' : 'Server offline — sign-in is unavailable'; })
+      .catch(() => { modeHint.textContent = 'Server offline — sign-in is unavailable'; });
 
     document.getElementById('loginForm').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -205,15 +204,7 @@
 
         throw new Error('API error ' + res.status);
       } catch (err) {
-        // Server not running — local fallback (demo only)
-        if (username === 'admin' && password === 'rabithole') {
-          sessionStorage.setItem('rabithole_auth', '1');
-          sessionStorage.setItem('rabithole_token', 'local-fallback');
-          sessionStorage.setItem('rabithole_user', 'admin');
-          window.location.href = 'admin.html';
-          return;
-        }
-        errorEl.textContent = 'Invalid username or password. (Start the server for database login.)';
+        errorEl.textContent = 'Could not reach the database server. Start the server and try again.';
         errorEl.classList.add('show');
         btn.disabled = false;
         btn.textContent = 'Sign In';

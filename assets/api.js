@@ -105,6 +105,16 @@
     return r.json();
   }
 
+  async function uploadRequestPhoto(file) {
+    const r = await fetch(API_BASE + '/api/requests/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Upload failed');
+    return r.json();
+  }
+
   async function deleteProduct(id) {
     if (await probeApi()) {
       const r = await fetch(API_BASE + '/api/products/' + encodeURIComponent(id), {
@@ -411,6 +421,7 @@
     getProduct,
     saveProduct,
     uploadImage,
+    uploadRequestPhoto,
     deleteProduct,
     getPosts,
     getPost,

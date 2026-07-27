@@ -110,36 +110,20 @@
 
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
-    .image-options {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin-top: 0.5rem;
-    }
-    .image-option {
-      border: 2px solid var(--border); border-radius: 8px; overflow: hidden;
-      cursor: pointer; aspect-ratio: 1; position: relative; transition: border-color 0.2s;
-    }
-    .image-option img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .image-option.selected { border-color: var(--orange); }
-    .image-option.selected::after {
-      content: '✓'; position: absolute; top: 4px; right: 6px;
-      background: var(--orange); color: #fff; width: 20px; height: 20px;
-      border-radius: 50%; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
-      font-weight: 700;
-    }
     .image-option-upload {
-      display: flex; align-items: center; justify-content: center;
-      background: var(--bg); border-style: dashed;
+      width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      overflow: hidden; background: var(--bg); transition: border-color 0.2s; margin-top: 0.5rem;
     }
     .image-option-upload:hover { border-color: var(--cyan); }
+    .image-option-upload img { width: 100%; height: 100%; object-fit: cover; display: block; }
     #uploadPlaceholder { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 0.4rem; }
     .image-option-upload.uploading { opacity: 0.6; pointer-events: none; }
-    .remove-image-btn {
-      position: absolute; top: 4px; left: 4px; z-index: 2;
-      width: 20px; height: 20px; border-radius: 50%;
-      background: rgba(0,0,0,0.7); color: #fff; border: none;
-      font-size: 0.7rem; line-height: 1; cursor: pointer;
-      display: none; align-items: center; justify-content: center;
+    .clear-image-btn {
+      margin-top: 0.6rem; background: none; border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; font-family: inherit;
     }
-    .remove-image-btn:hover { background: #ff6b6b; }
+    .clear-image-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
 
     .actions {
       display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center;
@@ -177,7 +161,6 @@
 
     @media (max-width: 560px) {
       .form-row { grid-template-columns: 1fr; }
-      .image-options { grid-template-columns: repeat(2, 1fr); }
       .actions { flex-direction: column; align-items: stretch; }
       .btn { justify-content: center; }
     }
@@ -265,30 +248,16 @@
         </div>
 
         <div class="form-group">
-          <label>Product Image <span class="optional">(choose one, or upload your own)</span></label>
-          <div class="image-options" id="imageOptions">
-            <div class="image-option selected" data-src="assets/suspension.png">
-              <img src="assets/suspension.png" alt="Suspension">
-            </div>
-            <div class="image-option" data-src="assets/parts.png">
-              <img src="assets/parts.png" alt="Parts">
-            </div>
-            <div class="image-option" data-src="assets/hero.png">
-              <img src="assets/hero.png" alt="Hero">
-            </div>
-            <div class="image-option" data-src="assets/logo.png">
-              <img src="assets/logo.png" alt="Logo">
-            </div>
-            <div class="image-option image-option-upload" id="uploadOption">
-              <button type="button" class="remove-image-btn" id="removeImageBtn" title="Remove uploaded image">✕</button>
-              <img id="uploadPreview" style="display:none;">
-              <span id="uploadPlaceholder">+ Upload</span>
-            </div>
+          <label>Product Image <span class="optional">(optional)</span></label>
+          <div class="image-option-upload" id="uploadOption">
+            <img id="uploadPreview" style="display:none;">
+            <span id="uploadPlaceholder">+ Upload</span>
           </div>
           <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <button type="button" class="clear-image-btn" id="clearImageBtn" style="display:none;">✕ Remove Image</button>
           <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB.</div>
           <div id="uploadStatus" class="hint"></div>
-          <input type="hidden" id="image" name="image" value="assets/suspension.png">
+          <input type="hidden" id="image" name="image" value="">
         </div>
 
         <div class="actions">
@@ -359,38 +328,45 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
 
-    // Image selection — preset thumbnails
-    document.querySelectorAll('.image-option[data-src]').forEach(el => {
-      el.addEventListener('click', () => {
-        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
-        el.classList.add('selected');
-        document.getElementById('image').value = el.dataset.src;
-      });
-    });
-
     // Image selection — upload your own
     const uploadOption = document.getElementById('uploadOption');
     const uploadPreview = document.getElementById('uploadPreview');
     const uploadPlaceholder = document.getElementById('uploadPlaceholder');
     const uploadStatus = document.getElementById('uploadStatus');
     const imageFileInput = document.getElementById('imageFileInput');
-    const removeImageBtn = document.getElementById('removeImageBtn');
+    const clearImageBtn = document.getElementById('clearImageBtn');
 
     uploadOption.addEventListener('click', () => imageFileInput.click());
 
-    removeImageBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    function clearImageSelection() {
       imageFileInput.value = '';
       uploadPreview.src = '';
       uploadPreview.style.display = 'none';
       uploadPlaceholder.style.display = 'block';
-      removeImageBtn.style.display = 'none';
-      uploadOption.classList.remove('selected');
-      uploadStatus.textContent = '';
-      const firstPreset = document.querySelector('.image-option[data-src]');
-      firstPreset.classList.add('selected');
-      document.getElementById('image').value = firstPreset.dataset.src;
-    });
+      clearImageBtn.style.display = 'none';
+      document.getElementById('image').value = '';
+    }
+
+    // Removing an image on an already-published product saves immediately —
+    // it shouldn't require a separate "Save Changes" click to take effect.
+    async function removeImageNow() {
+      clearImageSelection();
+      uploadStatus.textContent = 'Removing…';
+      await loadEditPromise;
+      if (!editing || !window.RabitholeDB) {
+        uploadStatus.textContent = '';
+        return;
+      }
+      try {
+        await RabitholeDB.saveProduct({ ...editing, image: '', _isEdit: true });
+        editing.image = '';
+        uploadStatus.textContent = 'Image removed.';
+      } catch (err) {
+        uploadStatus.textContent = 'Could not remove image: ' + (err.message || 'unknown error');
+      }
+    }
+
+    clearImageBtn.addEventListener('click', removeImageNow);
 
     imageFileInput.addEventListener('change', async () => {
       const file = imageFileInput.files[0];
@@ -421,9 +397,7 @@
         uploadPreview.src = result.path;
         uploadPreview.style.display = 'block';
         uploadPlaceholder.style.display = 'none';
-        removeImageBtn.style.display = 'flex';
-        document.querySelectorAll('.image-option').forEach(o => o.classList.remove('selected'));
-        uploadOption.classList.add('selected');
+        clearImageBtn.style.display = 'inline-block';
         uploadStatus.textContent = 'Uploaded.';
       } catch (err) {
         uploadStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
@@ -440,7 +414,7 @@
 
     if (typeof ensureSeedProducts === 'function') ensureSeedProducts();
 
-    (async function loadEdit() {
+    const loadEditPromise = (async function loadEdit() {
       if (!editId) return;
       let products = [];
       if (window.RabitholeDB) products = await RabitholeDB.getProducts();
@@ -457,16 +431,12 @@
         document.getElementById('description').value = editing.description;
         document.getElementById('shippingInfo').value = editing.shippingInfo || '';
         document.getElementById('stockQuantity').value = editing.stockQuantity ?? '';
-        document.getElementById('image').value = editing.image;
-        const presets = document.querySelectorAll('.image-option[data-src]');
-        const matchesPreset = Array.from(presets).some(o => o.dataset.src === editing.image);
-        presets.forEach(o => o.classList.toggle('selected', o.dataset.src === editing.image));
-        if (!matchesPreset) {
+        document.getElementById('image').value = editing.image || '';
+        if (editing.image) {
           uploadPreview.src = editing.image;
           uploadPreview.style.display = 'block';
           uploadPlaceholder.style.display = 'none';
-          removeImageBtn.style.display = 'flex';
-          uploadOption.classList.add('selected');
+          clearImageBtn.style.display = 'inline-block';
         }
       }
     })();
@@ -512,13 +482,18 @@
           if (typeof saveProducts === 'function') saveProducts(products);
           else localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
         }
-        statusEl.className = 'status success';
-        statusEl.textContent = editing ? 'Product updated. Redirecting…' : 'Product published! Redirecting to the shop…';
         document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
-        submitBtn.disabled = true;
-        setTimeout(() => {
-          window.location.href = 'products.html' + (editing ? '#product=' + editing.id : '');
-        }, 850);
+        statusEl.className = 'status success';
+        if (editing) {
+          editing = { ...editing, ...product };
+          statusEl.textContent = 'Changes saved.';
+        } else {
+          statusEl.textContent = 'Product published! Redirecting to the shop…';
+          submitBtn.disabled = true;
+          setTimeout(() => {
+            window.location.href = 'products.html#product=' + product.id;
+          }, 850);
+        }
       } catch (err) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');

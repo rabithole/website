@@ -98,6 +98,21 @@
       text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;
     }
 
+    .post-image-upload {
+      width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      overflow: hidden; background: var(--bg); transition: border-color 0.2s;
+    }
+    .post-image-upload:hover { border-color: var(--cyan); }
+    .post-image-upload img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .post-image-upload span { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 0.4rem; }
+    .post-image-upload.uploading { opacity: 0.6; pointer-events: none; }
+    .clear-image-btn {
+      margin-top: 0.6rem; background: none; border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; font-family: inherit;
+    }
+    .clear-image-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
     .actions {
       display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem;
       align-items: center;
@@ -193,6 +208,19 @@
         </div>
 
         <div class="form-group">
+          <label>Featured Image <span class="optional">(optional)</span></label>
+          <div class="post-image-upload" id="postImageUpload">
+            <img id="postImagePreview" style="display:none;">
+            <span id="postImagePlaceholder">+ Add Image</span>
+          </div>
+          <input type="file" id="postImageFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <button type="button" class="clear-image-btn" id="postImageRemoveBtn" style="display:none;">✕ Remove Image</button>
+          <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB.</div>
+          <div id="postImageStatus" class="hint"></div>
+          <input type="hidden" id="image" name="image" value="">
+        </div>
+
+        <div class="form-group">
           <label for="content">Content</label>
           <textarea id="content" name="content" placeholder="Write the post here…
 
@@ -274,7 +302,7 @@ Tips:
 
     if (typeof ensureSeedPosts === 'function') ensureSeedPosts();
 
-    (async function loadEdit() {
+    const loadEditPromise = (async function loadEdit() {
       if (!editId) return;
       let posts = window.RabitholeDB ? await RabitholeDB.getPosts() : (typeof getPosts === 'function' ? getPosts() : []);
       editingPost = posts.find(p => p.id === editId) || null;
@@ -286,11 +314,101 @@ Tips:
         document.getElementById('tags').value = (editingPost.tags || []).join(', ');
         document.getElementById('content').value = editingPost.content;
         document.getElementById('titleCount').textContent = editingPost.title.length;
+        if (editingPost.image) {
+          imageField.value = editingPost.image;
+          postImagePreview.src = editingPost.image;
+          postImagePreview.style.display = 'block';
+          postImagePlaceholder.style.display = 'none';
+          postImageRemoveBtn.style.display = 'inline-block';
+        }
       }
     })();
 
     document.getElementById('title').addEventListener('input', function () {
       document.getElementById('titleCount').textContent = this.value.length;
+    });
+
+    // ---------- Featured image ----------
+    const postImageUpload = document.getElementById('postImageUpload');
+    const postImagePreview = document.getElementById('postImagePreview');
+    const postImagePlaceholder = document.getElementById('postImagePlaceholder');
+    const postImageFileInput = document.getElementById('postImageFileInput');
+    const postImageRemoveBtn = document.getElementById('postImageRemoveBtn');
+    const postImageStatus = document.getElementById('postImageStatus');
+    const imageField = document.getElementById('image');
+
+    postImageUpload.addEventListener('click', () => postImageFileInput.click());
+
+    function clearPostImage() {
+      postImageFileInput.value = '';
+      postImagePreview.src = '';
+      postImagePreview.style.display = 'none';
+      postImagePlaceholder.style.display = 'block';
+      postImageRemoveBtn.style.display = 'none';
+      imageField.value = '';
+    }
+
+    // Removing an image on an already-published post saves immediately —
+    // it shouldn't require a separate "Save Changes" click to take effect.
+    async function removePostImageNow() {
+      clearPostImage();
+      postImageStatus.textContent = 'Removing…';
+      await loadEditPromise;
+      if (!editingPost || !window.RabitholeDB) {
+        postImageStatus.textContent = '';
+        return;
+      }
+      try {
+        await RabitholeDB.savePost({ ...editingPost, image: '', _isEdit: true });
+        editingPost.image = '';
+        postImageStatus.textContent = 'Image removed.';
+      } catch (err) {
+        postImageStatus.textContent = 'Could not remove image: ' + (err.message || 'unknown error');
+      }
+    }
+
+    postImageRemoveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removePostImageNow();
+    });
+
+    postImageFileInput.addEventListener('change', async () => {
+      const file = postImageFileInput.files[0];
+      if (!file) return;
+
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(file.type)) {
+        postImageStatus.textContent = 'Unsupported file type. Use PNG, JPG, WEBP, or GIF.';
+        postImageFileInput.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        postImageStatus.textContent = 'Image is too large (max 8MB).';
+        postImageFileInput.value = '';
+        return;
+      }
+      if (!window.RabitholeDB) {
+        postImageStatus.textContent = 'Uploading requires the database server to be running.';
+        postImageFileInput.value = '';
+        return;
+      }
+
+      postImageStatus.textContent = 'Uploading…';
+      postImageUpload.classList.add('uploading');
+      try {
+        const result = await RabitholeDB.uploadImage(file);
+        imageField.value = result.path;
+        postImagePreview.src = result.path;
+        postImagePreview.style.display = 'block';
+        postImagePlaceholder.style.display = 'none';
+        postImageRemoveBtn.style.display = 'inline-block';
+        postImageStatus.textContent = 'Uploaded.';
+      } catch (err) {
+        postImageStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
+        postImageFileInput.value = '';
+      } finally {
+        postImageUpload.classList.remove('uploading');
+      }
     });
 
     document.getElementById('previewBtn').addEventListener('click', function () {
@@ -318,12 +436,14 @@ Tips:
       }
 
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const image = imageField.value || null;
       const now = new Date();
       const post = {
         id: editingPost ? editingPost.id : ('post-' + Date.now()),
         title,
         tags,
         content,
+        image,
         date: editingPost ? editingPost.date : now.toISOString().slice(0, 10),
         createdAt: editingPost ? editingPost.createdAt : Date.now(),
         updatedAt: editingPost ? Date.now() : null,
@@ -340,13 +460,18 @@ Tips:
           if (typeof savePosts === 'function') savePosts(posts);
           else localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
         }
-        statusEl.className = 'status success';
-        statusEl.textContent = editingPost ? 'Changes saved. Redirecting…' : 'Post published! Redirecting to the blog…';
         document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
-        submitBtn.disabled = true;
-        setTimeout(() => {
-          window.location.href = 'blog.html' + (editingPost ? '#post=' + editingPost.id : '');
-        }, 850);
+        statusEl.className = 'status success';
+        if (editingPost) {
+          editingPost = { ...editingPost, ...post };
+          statusEl.textContent = 'Changes saved.';
+        } else {
+          statusEl.textContent = 'Post published! Redirecting to the blog…';
+          submitBtn.disabled = true;
+          setTimeout(() => {
+            window.location.href = 'blog.html#post=' + post.id;
+          }, 850);
+        }
       } catch (err) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');

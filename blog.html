@@ -79,8 +79,13 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 1.35rem 1.5rem;
       cursor: pointer; transition: border-color 0.2s, transform 0.2s;
+      display: flex; gap: 1.1rem; align-items: flex-start;
     }
     .post-item:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .post-thumb {
+      width: 96px; height: 96px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+    }
+    .post-item-body { flex: 1; min-width: 0; }
 
     .post-meta {
       display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap;
@@ -127,10 +132,17 @@
       color: var(--text); font-size: 1.02rem; white-space: pre-wrap; line-height: 1.7;
     }
     .article-tags { margin-top: 1.8rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .article-image {
+      width: 100%; max-height: 340px; object-fit: cover; display: block;
+      border-radius: var(--radius) var(--radius) 0 0; margin: -2rem -1.8rem 1.5rem;
+      width: calc(100% + 3.6rem);
+    }
 
     @media (max-width: 600px) {
       .page-header { flex-direction: column; align-items: flex-start; }
       .article { padding: 1.4rem 1.15rem; }
+      .article-image { margin: -1.4rem -1.15rem 1.2rem; width: calc(100% + 2.3rem); }
+      .post-thumb { width: 72px; height: 72px; }
     }
   </style>
 </head>
@@ -256,13 +268,16 @@ function ensureSeedPosts() {
 
       container.innerHTML = posts.map(p => `
         <div class="post-item" data-id="${p.id}">
-          <div class="post-meta">
-            <span>${formatDate(p.date)}</span>
-            ${p.updatedAt ? '<span class="edited-badge">· edited</span>' : ''}
-            ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+          ${p.image ? `<img class="post-thumb" src="${escapeHtml(p.image)}" alt="">` : ''}
+          <div class="post-item-body">
+            <div class="post-meta">
+              <span>${formatDate(p.date)}</span>
+              ${p.updatedAt ? '<span class="edited-badge">· edited</span>' : ''}
+              ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+            <h2>${escapeHtml(p.title)}</h2>
+            <p class="post-excerpt">${escapeHtml(excerpt(p.content))}</p>
           </div>
-          <h2>${escapeHtml(p.title)}</h2>
-          <p class="post-excerpt">${escapeHtml(excerpt(p.content))}</p>
         </div>
       `).join('');
 
@@ -284,6 +299,7 @@ function ensureSeedPosts() {
         : '';
 
       document.getElementById('articleContent').innerHTML = `
+        ${post.image ? `<img class="article-image" src="${escapeHtml(post.image)}" alt="">` : ''}
         <div class="post-meta">
           <span>${formatDate(post.date)}</span>
           ${editedNote}

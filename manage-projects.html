@@ -84,6 +84,11 @@
 
     .proj-cell { display: flex; align-items: center; gap: 0.7rem; }
     .proj-cell img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; background: var(--bg); }
+    .proj-cell .img-placeholder {
+      width: 42px; height: 42px; border-radius: 8px; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 0.55rem; text-align: center; flex-shrink: 0;
+    }
     .proj-title { font-weight: 600; }
 
     .tag {
@@ -190,7 +195,7 @@
               <tr data-project-id="${p.id}">
                 <td data-label="Project">
                   <div class="proj-cell">
-                    <img src="${escapeHtml(p.image)}" alt="">
+                    ${p.image ? `<img src="${escapeHtml(p.image)}" alt="">` : '<div class="img-placeholder">No Img</div>'}
                     <span class="proj-title">${escapeHtml(p.title)}</span>
                   </div>
                 </td>

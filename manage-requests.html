@@ -98,6 +98,11 @@
     }
     .btn-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
 
+    .req-photo-thumb {
+      width: 56px; height: 56px; object-fit: cover; border-radius: 6px;
+      border: 1px solid var(--border); display: block;
+    }
+
     .empty-state {
       text-align: center; padding: 3rem 1.5rem;
       background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
@@ -185,6 +190,7 @@
               <th>From</th>
               <th>Type</th>
               <th>Description</th>
+              <th>Photo</th>
               <th>Budget / Timeline</th>
               <th>Status</th>
               <th></th>
@@ -200,6 +206,9 @@
                 </td>
                 <td data-label="Type"><span class="service-tag">${escapeHtml(r.serviceType)}</span></td>
                 <td data-label="Description"><div class="req-desc">${escapeHtml(r.description)}</div></td>
+                <td data-label="Photo">
+                  ${r.photo ? `<a href="${escapeHtml(r.photo)}" target="_blank" rel="noopener"><img class="req-photo-thumb" src="${escapeHtml(r.photo)}" alt="Reference photo"></a>` : '<span class="hint">None</span>'}
+                </td>
                 <td data-label="Budget / Timeline">
                   ${r.budget ? escapeHtml(r.budget) : '<span class="hint">No budget given</span>'}<br>
                   ${r.timeline ? escapeHtml(r.timeline) : '<span class="hint">No timeline given</span>'}

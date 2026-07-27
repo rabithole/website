@@ -95,6 +95,10 @@
     }
     .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
     .product-card:hover .product-img img { transform: scale(1.05); }
+    .img-placeholder {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 0.8rem; background: #0c0d10;
+    }
 
     .status-badge {
       position: absolute; top: 10px; left: 10px;
@@ -144,6 +148,7 @@
       background: #0c0d10;
     }
     .detail-img img { width: 100%; height: auto; display: block; }
+    .detail-img .img-placeholder { height: 320px; }
 
     .detail-info h1 {
       font-family: 'Orbitron', sans-serif; font-size: 1.6rem; margin-bottom: 0.5rem; line-height: 1.25;
@@ -371,7 +376,7 @@
       grid.innerHTML = products.map(p => `
         <div class="product-card" data-id="${p.id}">
           <div class="product-img">
-            <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+            ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">` : '<div class="img-placeholder">No Image</div>'}
             <span class="status-badge ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
           </div>
           <div class="product-body">
@@ -400,7 +405,7 @@
 
       document.getElementById('detailContent').innerHTML = `
         <div class="detail-img">
-          <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+          ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">` : '<div class="img-placeholder">No Image</div>'}
         </div>
         <div class="detail-info">
           <h1>${escapeHtml(p.name)}</h1>
