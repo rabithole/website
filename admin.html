@@ -35,13 +35,14 @@
     }
     .nav-inner {
       max-width: 900px; margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      row-gap: 0.6rem;
     }
     .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
     .logo img { height: 36px; border-radius: 6px; }
     .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
     .logo-text span { color: var(--orange); }
-    .nav-right { display: flex; gap: 1rem; align-items: center; }
+    .nav-right { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
     .nav-right a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
     .nav-right a:hover { color: var(--orange); }
     .badge {

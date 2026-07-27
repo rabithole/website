@@ -35,13 +35,14 @@
     }
     .nav-inner {
       max-width: 760px; margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      row-gap: 0.6rem;
     }
     .logo { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
     .logo img { height: 36px; border-radius: 6px; }
     .logo-text { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; }
     .logo-text span { color: var(--orange); }
-    .nav-links { display: flex; gap: 1.1rem; align-items: center; }
+    .nav-links { display: flex; gap: 1.1rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
     .nav-links a {
       color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem;
     }
