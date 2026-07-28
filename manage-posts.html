@@ -98,6 +98,13 @@
     .btn-edit:hover { border-color: var(--cyan); color: var(--cyan); }
     .btn-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
 
+    .status-pill {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+      padding: 0.2rem 0.55rem; border-radius: 999px; display: inline-block;
+    }
+    .status-pill.Draft { background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffc107; }
+    .status-pill.Published { background: rgba(0,180,100,0.12); border: 1px solid rgba(0,180,100,0.35); color: #5ddea0; }
+
     .empty-state {
       text-align: center; padding: 3rem 1.5rem;
       background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius);
@@ -184,6 +191,7 @@
           <thead>
             <tr>
               <th>Title</th>
+              <th>Status</th>
               <th>Date</th>
               <th>Tags</th>
               <th></th>
@@ -193,11 +201,13 @@
             ${posts.map(p => `
               <tr data-post-id="${p.id}">
                 <td data-label="Title"><span class="post-title">${escapeHtml(p.title)}</span></td>
+                <td data-label="Status"><span class="status-pill ${p.status === 'Draft' ? 'Draft' : 'Published'}">${p.status === 'Draft' ? 'Draft' : 'Published'}</span></td>
                 <td data-label="Date">${formatDate(p.date)}</td>
                 <td data-label="Tags">${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
                 <td data-label="">
                   <div class="row-actions">
                     <a class="btn-edit" href="create-post.html?id=${encodeURIComponent(p.id)}">Edit</a>
+                    <button class="btn-edit" onclick="handleToggleStatus('${p.id}', '${p.status === 'Draft' ? 'Draft' : 'Published'}')">${p.status === 'Draft' ? 'Publish' : 'Unpublish'}</button>
                     <button class="btn-delete" onclick="handleDelete('${p.id}')">Delete</button>
                   </div>
                 </td>
@@ -207,6 +217,18 @@
         </table>
       `;
     }
+
+    window.handleToggleStatus = async function (id, currentStatus) {
+      const newStatus = currentStatus === 'Draft' ? 'Published' : 'Draft';
+      try {
+        const post = await RabitholeDB.getPost(id);
+        if (!post) return;
+        await RabitholeDB.savePost({ ...post, status: newStatus, _isEdit: true });
+        load();
+      } catch (err) {
+        alert('Could not update status: ' + err.message);
+      }
+    };
 
     window.handleDelete = async function (id) {
       if (!confirm('Delete this post permanently? This cannot be undone.')) return;

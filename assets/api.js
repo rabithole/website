@@ -131,7 +131,7 @@
   // ---------- Posts ----------
   async function getPosts() {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/posts');
+      const r = await fetch(API_BASE + '/api/posts', { headers: authHeaders() });
       return r.json();
     }
     return lsGet(POST_KEY);
@@ -139,7 +139,7 @@
 
   async function getPost(id) {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/posts/' + encodeURIComponent(id));
+      const r = await fetch(API_BASE + '/api/posts/' + encodeURIComponent(id), { headers: authHeaders() });
       if (!r.ok) return null;
       return r.json();
     }

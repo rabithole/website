@@ -160,6 +160,14 @@
       background: rgba(255,107,0,0.15); border-color: rgba(255,107,0,0.4); color: var(--orange);
     }
 
+    .status-badge {
+      display: none; align-items: center; gap: 0.3rem;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      padding: 0.25rem 0.6rem; border-radius: 999px; margin-bottom: 0.6rem;
+      background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffc107;
+    }
+    .status-badge.show { display: inline-flex; }
+
     @media (max-width: 560px) {
       .actions { flex-direction: column; align-items: stretch; }
       .btn { justify-content: center; }
@@ -190,6 +198,7 @@
       <span class="step">3. Publish</span>
     </div>
 
+    <span class="status-badge" id="statusBadge">Draft</span>
     <h1 class="page-title" id="pageTitle">Write a New Post</h1>
     <p class="page-sub" id="pageSub">Share design decisions, print settings, race results, or engineering lessons from the workshop.</p>
 
@@ -232,6 +241,7 @@ Tips:
         </div>
 
         <div class="actions">
+          <button type="button" class="btn btn-secondary" id="saveDraftBtn">Save as Draft</button>
           <button type="submit" class="btn btn-primary" id="submitBtn">Publish Post</button>
           <button type="button" class="btn btn-secondary" id="previewBtn">Preview</button>
           <a href="manage-posts.html" class="btn btn-ghost">Cancel</a>
@@ -309,7 +319,7 @@ Tips:
       if (editingPost) {
         document.getElementById('pageTitle').textContent = 'Edit Post';
         document.getElementById('pageSub').textContent = 'Update the content and save your changes.';
-        document.getElementById('submitBtn').textContent = 'Save Changes';
+        refreshButtons();
         document.getElementById('title').value = editingPost.title;
         document.getElementById('tags').value = (editingPost.tags || []).join(', ');
         document.getElementById('content').value = editingPost.content;
@@ -323,6 +333,8 @@ Tips:
         }
       }
     })();
+
+    refreshButtons();
 
     document.getElementById('title').addEventListener('input', function () {
       document.getElementById('titleCount').textContent = this.value.length;
@@ -421,13 +433,23 @@ Tips:
       w.document.close();
     });
 
-    document.getElementById('postForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+    function refreshButtons() {
+      const badge = document.getElementById('statusBadge');
+      const saveDraftBtn = document.getElementById('saveDraftBtn');
+      const submitBtn = document.getElementById('submitBtn');
+      const isPublished = editingPost && editingPost.status === 'Published';
+      badge.classList.toggle('show', !!editingPost && !isPublished);
+      saveDraftBtn.textContent = isPublished ? 'Unpublish' : (editingPost ? 'Save Draft' : 'Save as Draft');
+      submitBtn.textContent = isPublished ? 'Save Changes' : (editingPost ? 'Publish' : 'Publish Post');
+    }
+
+    async function doSave(status) {
       const title = document.getElementById('title').value.trim();
       const tagsRaw = document.getElementById('tags').value.trim();
       const content = document.getElementById('content').value.trim();
       const statusEl = document.getElementById('status');
       const submitBtn = document.getElementById('submitBtn');
+      const saveDraftBtn = document.getElementById('saveDraftBtn');
 
       if (!title || !content) {
         statusEl.className = 'status error';
@@ -438,12 +460,15 @@ Tips:
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const image = imageField.value || null;
       const now = new Date();
+      const wasNew = !editingPost;
+      const wasPublished = editingPost && editingPost.status === 'Published';
       const post = {
         id: editingPost ? editingPost.id : ('post-' + Date.now()),
         title,
         tags,
         content,
         image,
+        status,
         date: editingPost ? editingPost.date : now.toISOString().slice(0, 10),
         createdAt: editingPost ? editingPost.createdAt : Date.now(),
         updatedAt: editingPost ? Date.now() : null,
@@ -462,21 +487,44 @@ Tips:
         }
         document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
         statusEl.className = 'status success';
-        if (editingPost) {
-          editingPost = { ...editingPost, ...post };
-          statusEl.textContent = 'Changes saved.';
-        } else {
+        editingPost = { ...(editingPost || {}), ...post };
+
+        if (wasNew && status === 'Published') {
           statusEl.textContent = 'Post published! Redirecting to the blog…';
           submitBtn.disabled = true;
+          saveDraftBtn.disabled = true;
           setTimeout(() => {
             window.location.href = 'blog.html#post=' + post.id;
           }, 850);
+          return;
         }
+
+        if (wasNew) {
+          history.replaceState(null, '', 'create-post.html?id=' + encodeURIComponent(post.id));
+          document.getElementById('pageTitle').textContent = 'Edit Post';
+          document.getElementById('pageSub').textContent = 'Update the content and save your changes.';
+        }
+
+        if (status === 'Published') {
+          statusEl.textContent = 'Published.';
+        } else if (wasPublished) {
+          statusEl.textContent = 'Unpublished — no longer visible on the blog.';
+        } else {
+          statusEl.textContent = 'Draft saved.';
+        }
+        refreshButtons();
       } catch (err) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');
       }
+    }
+
+    document.getElementById('postForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      doSave('Published');
     });
+
+    document.getElementById('saveDraftBtn').addEventListener('click', () => doSave('Draft'));
   </script>
 </body>
 </html>

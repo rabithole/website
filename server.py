@@ -224,6 +224,7 @@ def row_to_post(row):
         "tags": tags,
         "content": row["content"],
         "image": row["image"],
+        "status": row["status"] if "status" in row.keys() else "Published",
         "date": row["date"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
@@ -454,9 +455,14 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path == "/api/posts":
             conn = get_db()
-            rows = conn.execute(
-                "SELECT * FROM posts ORDER BY created_at DESC"
-            ).fetchall()
+            if self._current_user():
+                rows = conn.execute(
+                    "SELECT * FROM posts ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM posts WHERE status = 'Published' ORDER BY created_at DESC"
+                ).fetchall()
             conn.close()
             return self._send_json([row_to_post(r) for r in rows])
 
@@ -468,6 +474,8 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             conn.close()
             if not row:
+                return self._send_json({"error": "Not found"}, 404)
+            if row["status"] != "Published" and not self._current_user():
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_post(row))
 
@@ -881,14 +889,15 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO posts
-                   (id, title, tags, content, image, date, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                   (id, title, tags, content, image, status, date, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     tags,
                     data["content"],
                     data.get("image") or None,
+                    data.get("status", "Published"),
                     data.get("date", time.strftime("%Y-%m-%d")),
                     data.get("createdAt", now),
                     None,
@@ -1092,8 +1101,16 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
-                "UPDATE posts SET title=?, tags=?, content=?, image=?, updated_at=? WHERE id=?",
-                (data["title"], tags, data["content"], data.get("image") or None, now, pid),
+                "UPDATE posts SET title=?, tags=?, content=?, image=?, status=?, updated_at=? WHERE id=?",
+                (
+                    data["title"],
+                    tags,
+                    data["content"],
+                    data.get("image") or None,
+                    data.get("status", "Published"),
+                    now,
+                    pid,
+                ),
             )
             conn.commit()
             row = conn.execute(
@@ -1364,6 +1381,8 @@ def main():
     post_cols = [r[1] for r in conn.execute("PRAGMA table_info(posts)").fetchall()]
     if post_cols and "image" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN image TEXT")
+    if post_cols and "status" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN status TEXT NOT NULL DEFAULT 'Published'")
     if conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0:
         seed_now = int(time.time() * 1000)
         conn.execute(
