@@ -58,6 +58,8 @@
       text-decoration: none;
     }
     .back-btn:hover { color: var(--orange); }
+    .back-links { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 1.3rem; }
+    .back-links .back-btn { margin-bottom: 0; }
 
     .page-title {
       font-family: 'Orbitron', sans-serif; font-size: 1.7rem; margin-bottom: 0.3rem;
@@ -191,7 +193,10 @@
   </nav>
 
   <div class="container">
-    <a href="admin.html" class="back-btn">← Back to Dashboard</a>
+    <div class="back-links">
+      <a href="admin.html" class="back-btn">← Back to Dashboard</a>
+      <a href="manage-posts.html" class="back-btn">← Back to Manage Posts</a>
+    </div>
     <div class="process-steps" id="processSteps">
       <span class="step active">1. Write</span>
       <span class="step">2. Review</span>
