@@ -8,13 +8,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # The deploy key on the server has a forced command (see ~/.ssh/authorized_keys),
-      # so whatever is in `script` is ignored — the server always runs its own
-      # deploy.sh (git pull + restart) regardless of what's requested here.
+      # The deploy key on the server has a forced command (see ~/.ssh/authorized_keys
+      # on the VPS), so the SSH connection always runs the server's own deploy.sh
+      # (git fetch + reset --hard + restart) no matter what command is sent here.
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: echo "deploying"
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "deploy"
