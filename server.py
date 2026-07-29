@@ -41,9 +41,9 @@ API:
     PUT  /api/requests/<id>                (Authorization: Bearer <token>) update status
     DELETE /api/requests/<id>              (Authorization: Bearer <token>) delete a request
 
-Default owner account (seeded in DB):
-    username: admin
-    password: rabithole
+The owner account is seeded on first run via manage_users.py — see that
+script to create or reset an account rather than relying on a hardcoded
+default here.
 
 PayPal setup:
     Edit paypal_config.json with your Client ID and Secret from
@@ -120,6 +120,14 @@ def is_allowed_static_path(path):
 # capture (typically seconds).
 PENDING_CARTS = {}
 PENDING_CARTS_LOCK = threading.Lock()
+
+# Simple in-memory login throttle: client_ip -> (fail_count, first_fail_at_seconds).
+# Resets on a successful login or once the window expires. In-memory only, which
+# is fine for a single-process server — a restart clears it, same as PENDING_CARTS.
+LOGIN_ATTEMPTS = {}
+LOGIN_ATTEMPTS_LOCK = threading.Lock()
+LOGIN_MAX_ATTEMPTS = 8
+LOGIN_WINDOW_SECONDS = 15 * 60
 
 PAYPAL_API_BASE = {
     "sandbox": "https://api-m.sandbox.paypal.com",
@@ -360,6 +368,36 @@ class Handler(SimpleHTTPRequestHandler):
         if auth.lower().startswith("bearer "):
             return auth[7:].strip()
         return None
+
+    def _client_ip(self):
+        # Behind nginx, self.client_address is always 127.0.0.1 — the real
+        # visitor IP is in X-Forwarded-For, set by our own reverse proxy config.
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return self.client_address[0]
+
+    def _login_rate_limited(self, ip):
+        with LOGIN_ATTEMPTS_LOCK:
+            entry = LOGIN_ATTEMPTS.get(ip)
+            if not entry:
+                return False
+            count, first_fail = entry
+            if time.time() - first_fail > LOGIN_WINDOW_SECONDS:
+                del LOGIN_ATTEMPTS[ip]
+                return False
+            return count >= LOGIN_MAX_ATTEMPTS
+
+    def _record_login_failure(self, ip):
+        with LOGIN_ATTEMPTS_LOCK:
+            count, first_fail = LOGIN_ATTEMPTS.get(ip, (0, time.time()))
+            if time.time() - first_fail > LOGIN_WINDOW_SECONDS:
+                count, first_fail = 0, time.time()
+            LOGIN_ATTEMPTS[ip] = (count + 1, first_fail)
+
+    def _clear_login_failures(self, ip):
+        with LOGIN_ATTEMPTS_LOCK:
+            LOGIN_ATTEMPTS.pop(ip, None)
 
     def _current_user(self):
         """Return user row if valid session token, else None."""
@@ -793,6 +831,12 @@ class Handler(SimpleHTTPRequestHandler):
 
         # --- Login ---
         if path == "/api/login":
+            client_ip = self._client_ip()
+            if self._login_rate_limited(client_ip):
+                return self._send_json(
+                    {"error": "Too many failed attempts. Try again later."}, 429
+                )
+
             username = (data.get("username") or "").strip()
             password = data.get("password") or ""
             if not username or not password:
@@ -806,12 +850,16 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             if not user:
                 conn.close()
+                self._record_login_failure(client_ip)
                 return self._send_json({"error": "Invalid credentials"}, 401)
 
             expected = hash_password(password, user["salt"])
             if not secrets.compare_digest(expected, user["password_hash"]):
                 conn.close()
+                self._record_login_failure(client_ip)
                 return self._send_json({"error": "Invalid credentials"}, 401)
+
+            self._clear_login_failures(client_ip)
 
             # Create session token
             token = secrets.token_urlsafe(32)
@@ -1437,7 +1485,6 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     print(f"Rabithole server running at http://localhost:{PORT}")
     print(f"Database: {DB_PATH}")
-    print("Default login - username: admin  password: rabithole")
     paypal_config = load_paypal_config()
     if not paypal_config["client_id"] or not paypal_config["secret"]:
         print("PayPal is NOT configured - edit paypal_config.json with your Client ID/Secret to enable checkout.")
