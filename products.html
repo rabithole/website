@@ -66,6 +66,15 @@
     }
     .page-header p { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.95rem; }
 
+    .placeholder-notice {
+      background: rgba(255, 180, 0, 0.1); border: 1px solid rgba(255, 180, 0, 0.35);
+      border-radius: var(--radius); padding: 1rem 1.3rem; margin-bottom: 1.5rem;
+      display: flex; align-items: flex-start; gap: 0.7rem; font-size: 0.92rem;
+    }
+    .placeholder-notice .icon { font-size: 1.2rem; line-height: 1.3; flex-shrink: 0; }
+    .placeholder-notice p { margin: 0; color: var(--text); line-height: 1.5; }
+    .placeholder-notice strong { color: #ffcf5c; }
+
     .filters {
       display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.8rem;
     }
@@ -264,6 +273,11 @@
         </div>
       </div>
 
+      <div class="placeholder-notice">
+        <span class="icon">🚧</span>
+        <p><strong>Heads up:</strong> the items below are placeholder examples of what I'll be selling — not real inventory yet, and not currently available to purchase. Check back soon for the actual shop lineup.</p>
+      </div>
+
       <div class="filters" id="filters">
         <button class="filter-btn active" data-cat="all">All</button>
         <button class="filter-btn" data-cat="Suspension">Suspension</button>
@@ -280,6 +294,10 @@
     <!-- DETAIL VIEW -->
     <div id="detailView">
       <button class="back-btn" id="backBtn">← Back to shop</button>
+      <div class="placeholder-notice">
+        <span class="icon">🚧</span>
+        <p><strong>Heads up:</strong> this is a placeholder example — not real inventory yet, and not currently available to purchase.</p>
+      </div>
       <div class="detail-grid" id="detailContent"></div>
     </div>
   </div>
