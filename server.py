@@ -14,6 +14,9 @@ API:
     GET/PUT/DELETE /api/products/<id>
     GET/POST /api/posts
     GET/PUT/DELETE /api/posts/<id>
+    GET  /api/blog-categories             public — list all blog categories
+    POST /api/blog-categories             (Authorization: Bearer <token>) {name} create a category
+    DELETE /api/blog-categories/<id>      (Authorization: Bearer <token>) delete a category
     GET/POST /api/projects
     GET/PUT/DELETE /api/projects/<id>
     GET  /api/paypal/config              public PayPal client id / currency
@@ -274,9 +277,18 @@ def row_to_post(row):
         "content": row["content"],
         "image": row["image"],
         "status": row["status"] if "status" in row.keys() else "Published",
+        "category": row["category"] if "category" in row.keys() else None,
         "date": row["date"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+    }
+
+
+def row_to_blog_category(row):
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "createdAt": row["created_at"],
     }
 
 
@@ -585,6 +597,14 @@ class Handler(SimpleHTTPRequestHandler):
             if row["status"] != "Published" and not self._current_user():
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_post(row))
+
+        if path == "/api/blog-categories":
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT * FROM blog_categories ORDER BY name COLLATE NOCASE"
+            ).fetchall()
+            conn.close()
+            return self._send_json([row_to_blog_category(r) for r in rows])
 
         if path == "/api/projects":
             conn = get_db()
@@ -1006,8 +1026,8 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO posts
-                   (id, title, tags, content, image, status, date, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                   (id, title, tags, content, image, status, category, date, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
@@ -1015,6 +1035,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data["content"],
                     data.get("image") or None,
                     data.get("status", "Published"),
+                    data.get("category") or None,
                     data.get("date", time.strftime("%Y-%m-%d")),
                     data.get("createdAt", now),
                     None,
@@ -1026,6 +1047,32 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             conn.close()
             return self._send_json(row_to_post(row), 201)
+
+        if path == "/api/blog-categories":
+            if not self._require_auth():
+                return
+            name = (data.get("name") or "").strip()
+            if not name:
+                return self._send_json({"error": "Category name is required"}, 400)
+            conn = get_db()
+            existing = conn.execute(
+                "SELECT * FROM blog_categories WHERE name = ? COLLATE NOCASE", (name,)
+            ).fetchone()
+            if existing:
+                conn.close()
+                return self._send_json({"error": f"“{name}” already exists"}, 409)
+            cid = f"cat-{int(time.time() * 1000)}"
+            now = int(time.time() * 1000)
+            conn.execute(
+                "INSERT INTO blog_categories (id, name, created_at) VALUES (?,?,?)",
+                (cid, name, now),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM blog_categories WHERE id = ?", (cid,)
+            ).fetchone()
+            conn.close()
+            return self._send_json(row_to_blog_category(row), 201)
 
         # --- Projects (auth required for create) ---
         if path == "/api/projects":
@@ -1249,13 +1296,14 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
             conn.execute(
-                "UPDATE posts SET title=?, tags=?, content=?, image=?, status=?, updated_at=? WHERE id=?",
+                "UPDATE posts SET title=?, tags=?, content=?, image=?, status=?, category=?, updated_at=? WHERE id=?",
                 (
                     data["title"],
                     tags,
                     data["content"],
                     data.get("image") or None,
                     data.get("status", "Published"),
+                    data.get("category") or None,
                     now,
                     pid,
                 ),
@@ -1387,6 +1435,16 @@ class Handler(SimpleHTTPRequestHandler):
             pid = path.split("/api/posts/", 1)[1]
             conn = get_db()
             conn.execute("DELETE FROM posts WHERE id = ?", (pid,))
+            conn.commit()
+            conn.close()
+            return self._send_json({"ok": True})
+
+        if path.startswith("/api/blog-categories/"):
+            if not self._require_auth():
+                return
+            cid = path.split("/api/blog-categories/", 1)[1]
+            conn = get_db()
+            conn.execute("DELETE FROM blog_categories WHERE id = ?", (cid,))
             conn.commit()
             conn.close()
             return self._send_json({"ok": True})
@@ -1531,6 +1589,15 @@ def main():
         conn.execute("ALTER TABLE posts ADD COLUMN image TEXT")
     if post_cols and "status" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN status TEXT NOT NULL DEFAULT 'Published'")
+    if post_cols and "category" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN category TEXT")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS blog_categories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL
+        )"""
+    )
     if conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0:
         seed_now = int(time.time() * 1000)
         conn.execute(

@@ -191,6 +191,32 @@
     return true;
   }
 
+  // ---------- Blog categories ----------
+  async function getBlogCategories() {
+    const r = await fetch(API_BASE + '/api/blog-categories');
+    if (!r.ok) throw new Error('Could not load categories');
+    return r.json();
+  }
+
+  async function createBlogCategory(name) {
+    const r = await fetch(API_BASE + '/api/blog-categories', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not create category');
+    return r.json();
+  }
+
+  async function deleteBlogCategory(id) {
+    const r = await fetch(API_BASE + '/api/blog-categories/' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!r.ok) throw new Error('Could not delete category');
+    return true;
+  }
+
   // ---------- RC Projects ----------
   async function getProjects() {
     if (await probeApi()) {
@@ -476,5 +502,8 @@
     getQuickStats,
     getQuickStatsSettings,
     updateQuickStatsSettings,
+    getBlogCategories,
+    createBlogCategory,
+    deleteBlogCategory,
   };
 })(window);

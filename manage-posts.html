@@ -111,6 +111,40 @@
       color: var(--text-muted);
     }
 
+    .category-manager {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem 1.4rem; margin-bottom: 1.8rem;
+    }
+    .category-manager h2 { font-size: 0.95rem; margin-bottom: 0.9rem; }
+    .category-list {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .category-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.3);
+      color: var(--orange); font-size: 0.8rem; font-weight: 600;
+      padding: 0.3rem 0.5rem 0.3rem 0.7rem; border-radius: 999px;
+    }
+    .category-pill button {
+      background: none; border: none; color: inherit; cursor: pointer;
+      font-size: 0.85rem; line-height: 1; padding: 0; opacity: 0.7;
+    }
+    .category-pill button:hover { opacity: 1; color: #ff6b6b; }
+    .category-add { display: flex; gap: 0.6rem; max-width: 360px; }
+    .category-add input {
+      flex: 1; padding: 0.6rem 0.85rem; border-radius: 8px;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+      font-size: 0.88rem; font-family: inherit; outline: none;
+    }
+    .category-add input:focus { border-color: var(--orange); }
+    .category-add button {
+      padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+      background: var(--orange); color: #fff; border: none; cursor: pointer; font-family: inherit;
+      white-space: nowrap;
+    }
+    .category-add button:hover { background: var(--orange-dim); }
+    .category-empty { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+
     @media (max-width: 700px) {
       table, thead, tbody, th, td, tr { display: block; }
       thead { display: none; }
@@ -142,6 +176,15 @@
         <p class="page-sub">Write new posts, edit existing ones, or remove them.</p>
       </div>
       <a href="create-post.html" class="btn btn-primary">+ Write Post</a>
+    </div>
+
+    <div class="category-manager">
+      <h2>Blog Categories</h2>
+      <div class="category-list" id="categoryList"></div>
+      <div class="category-add">
+        <input type="text" id="newCategoryInput" placeholder="New category name">
+        <button type="button" id="addCategoryBtn">Add</button>
+      </div>
     </div>
 
     <div id="postsTableWrap"></div>
@@ -192,6 +235,7 @@
             <tr>
               <th>Title</th>
               <th>Status</th>
+              <th>Category</th>
               <th>Date</th>
               <th>Tags</th>
               <th></th>
@@ -202,6 +246,7 @@
               <tr data-post-id="${p.id}">
                 <td data-label="Title"><span class="post-title">${escapeHtml(p.title)}</span></td>
                 <td data-label="Status"><span class="status-pill ${p.status === 'Draft' ? 'Draft' : 'Published'}">${p.status === 'Draft' ? 'Draft' : 'Published'}</span></td>
+                <td data-label="Category">${p.category ? escapeHtml(p.category) : '<span class="hint" style="color:var(--text-muted);">—</span>'}</td>
                 <td data-label="Date">${formatDate(p.date)}</td>
                 <td data-label="Tags">${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
                 <td data-label="">
@@ -243,6 +288,60 @@
       }
     };
 
+    async function loadCategories() {
+      const list = document.getElementById('categoryList');
+      if (!window.RabitholeDB) return;
+      let categories;
+      try {
+        categories = await RabitholeDB.getBlogCategories();
+      } catch (err) {
+        list.innerHTML = `<span class="category-empty">Could not load categories: ${escapeHtml(err.message)}</span>`;
+        return;
+      }
+      if (categories.length === 0) {
+        list.innerHTML = '<span class="category-empty">No categories yet — add one below.</span>';
+        return;
+      }
+      list.innerHTML = categories.map(c => `
+        <span class="category-pill">
+          ${escapeHtml(c.name)}
+          <button type="button" onclick="handleDeleteCategory('${c.id}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')" title="Delete category">✕</button>
+        </span>
+      `).join('');
+    }
+
+    window.handleDeleteCategory = async function (id, name) {
+      if (!confirm(`Delete the "${name}" category? Posts using it will just show no category — they won't be deleted.`)) return;
+      try {
+        await RabitholeDB.deleteBlogCategory(id);
+        loadCategories();
+        load();
+      } catch (err) {
+        alert('Could not delete category: ' + err.message);
+      }
+    };
+
+    document.getElementById('addCategoryBtn').addEventListener('click', async () => {
+      const input = document.getElementById('newCategoryInput');
+      const name = input.value.trim();
+      if (!name) return;
+      try {
+        await RabitholeDB.createBlogCategory(name);
+        input.value = '';
+        loadCategories();
+      } catch (err) {
+        alert('Could not add category: ' + err.message);
+      }
+    });
+
+    document.getElementById('newCategoryInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addCategoryBtn').click();
+      }
+    });
+
+    loadCategories();
     load();
   </script>
 </body>

@@ -73,6 +73,20 @@
       border: 1px solid var(--border); color: var(--text-muted);
     }
 
+    .category-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+    .category-filter-btn {
+      font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.85rem;
+      border-radius: 999px; border: 1px solid var(--border); background: transparent;
+      color: var(--text-muted); cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .category-filter-btn:hover { border-color: var(--orange); color: var(--orange); }
+    .category-filter-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .category-badge {
+      background: rgba(255,107,0,0.12); border: 1px solid rgba(255,107,0,0.3);
+      color: var(--orange); font-size: 0.72rem; font-weight: 700;
+      padding: 0.16rem 0.5rem; border-radius: 5px;
+    }
+
     .post-list { display: flex; flex-direction: column; gap: 1rem; }
 
     .post-item {
@@ -173,6 +187,7 @@
         </div>
       </div>
 
+      <div class="category-filters" id="categoryFilters"></div>
 
       <div id="postList" class="post-list"></div>
     </div>
@@ -254,14 +269,57 @@ function ensureSeedPosts() {
       return div.innerHTML;
     }
 
-    async function renderList() {
-      const posts = (await loadPosts()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    let currentCategoryFilter = null;
+    let ALL_POSTS = [];
+
+    async function loadCategoryFilters() {
+      const container = document.getElementById('categoryFilters');
+      if (!window.RabitholeDB) return;
+      let categories = [];
+      try {
+        categories = await RabitholeDB.getBlogCategories();
+      } catch (err) {
+        return;
+      }
+      if (categories.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'category-filter-btn active';
+      allBtn.textContent = 'All';
+      allBtn.addEventListener('click', () => setCategoryFilter(null));
+      container.innerHTML = '';
+      container.appendChild(allBtn);
+      categories.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'category-filter-btn';
+        btn.textContent = c.name;
+        btn.addEventListener('click', () => setCategoryFilter(c.name));
+        container.appendChild(btn);
+      });
+    }
+
+    function setCategoryFilter(name) {
+      currentCategoryFilter = name;
+      document.querySelectorAll('.category-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', (name === null && btn.textContent === 'All') || btn.textContent === name);
+      });
+      renderPostList();
+    }
+
+    function renderPostList() {
+      const posts = currentCategoryFilter
+        ? ALL_POSTS.filter(p => p.category === currentCategoryFilter)
+        : ALL_POSTS;
       const container = document.getElementById('postList');
 
       if (posts.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <p>No posts yet. Check back soon.</p>
+            <p>${currentCategoryFilter ? 'No posts in this category yet.' : 'No posts yet. Check back soon.'}</p>
           </div>`;
         return;
       }
@@ -273,6 +331,7 @@ function ensureSeedPosts() {
             <div class="post-meta">
               <span>${formatDate(p.date)}</span>
               ${p.updatedAt ? '<span class="edited-badge">· edited</span>' : ''}
+              ${p.category ? `<span class="category-badge">${escapeHtml(p.category)}</span>` : ''}
               ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
             </div>
             <h2>${escapeHtml(p.title)}</h2>
@@ -284,6 +343,11 @@ function ensureSeedPosts() {
       container.querySelectorAll('.post-item').forEach(el => {
         el.addEventListener('click', () => showPost(el.dataset.id));
       });
+    }
+
+    async function renderList() {
+      ALL_POSTS = (await loadPosts()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      renderPostList();
     }
 
     async function showPost(id) {
@@ -303,6 +367,7 @@ function ensureSeedPosts() {
         <div class="post-meta">
           <span>${formatDate(post.date)}</span>
           ${editedNote}
+          ${post.category ? `<span class="category-badge">${escapeHtml(post.category)}</span>` : ''}
         </div>
         <h1>${escapeHtml(post.title)}</h1>
         <div class="article-body">${escapeHtml(post.content)}</div>
@@ -327,6 +392,7 @@ function ensureSeedPosts() {
     (async function init() {
       if (window.RabitholeDB) console.log('Rabithole storage:', await RabitholeDB.storageMode());
       await renderList();
+      loadCategoryFilters();
       if (window.location.hash.startsWith('#post=')) await showPost(window.location.hash.slice(6));
     })();
 

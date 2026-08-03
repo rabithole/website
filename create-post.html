@@ -96,6 +96,16 @@
 
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
+    .new-category-row { display: none; gap: 0.5rem; margin-top: 0.6rem; }
+    .new-category-row.show { display: flex; }
+    .new-category-row input { flex: 1; }
+    .new-category-row button {
+      padding: 0.7rem 1.1rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem;
+      background: var(--orange); color: #fff; border: none; cursor: pointer; font-family: inherit;
+      white-space: nowrap;
+    }
+    .new-category-row button:hover { background: var(--orange-dim); }
+
     .char-count {
       text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;
     }
@@ -216,6 +226,18 @@
         </div>
 
         <div class="form-group">
+          <label for="category">Category <span class="optional">(optional)</span></label>
+          <select id="category" name="category">
+            <option value="">No category</option>
+          </select>
+          <div class="new-category-row" id="newCategoryRow">
+            <input type="text" id="newCategoryInput" placeholder="New category name">
+            <button type="button" id="addCategoryBtn">Add</button>
+          </div>
+          <div class="hint">Pick one category per post, or add a new one on the fly.</div>
+        </div>
+
+        <div class="form-group">
           <label for="tags">Tags <span class="optional">(optional, comma-separated)</span></label>
           <input type="text" id="tags" name="tags" placeholder="materials, FEA, suspension, 3d-printing">
           <div class="hint">Helps readers find related posts later.</div>
@@ -310,6 +332,64 @@ Tips:
       localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
     }
 
+    // ---------- Categories ----------
+    const categorySelect = document.getElementById('category');
+    const newCategoryRow = document.getElementById('newCategoryRow');
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+
+    function populateCategoryOptions(categories, selected) {
+      categorySelect.innerHTML = '';
+      const noneOpt = document.createElement('option');
+      noneOpt.value = '';
+      noneOpt.textContent = 'No category';
+      categorySelect.appendChild(noneOpt);
+      categories.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        categorySelect.appendChild(opt);
+      });
+      const newOpt = document.createElement('option');
+      newOpt.value = '__new__';
+      newOpt.textContent = '+ Add new category…';
+      categorySelect.appendChild(newOpt);
+      if (selected) categorySelect.value = selected;
+    }
+
+    const loadCategoriesPromise = (async function loadCategories() {
+      if (!window.RabitholeDB) return;
+      try {
+        const categories = await RabitholeDB.getBlogCategories();
+        populateCategoryOptions(categories);
+      } catch (err) {
+        // Leave just "No category" / "+ Add new category…" in place.
+        populateCategoryOptions([]);
+      }
+    })();
+
+    categorySelect.addEventListener('change', () => {
+      newCategoryRow.classList.toggle('show', categorySelect.value === '__new__');
+    });
+
+    addCategoryBtn.addEventListener('click', async () => {
+      const name = newCategoryInput.value.trim();
+      if (!name) return;
+      addCategoryBtn.disabled = true;
+      try {
+        const categories = await RabitholeDB.getBlogCategories();
+        await RabitholeDB.createBlogCategory(name);
+        const updated = await RabitholeDB.getBlogCategories();
+        populateCategoryOptions(updated, name);
+        newCategoryRow.classList.remove('show');
+        newCategoryInput.value = '';
+      } catch (err) {
+        alert('Could not add category: ' + err.message);
+      } finally {
+        addCategoryBtn.disabled = false;
+      }
+    });
+
     // ---------- Edit mode detection ----------
     const params = new URLSearchParams(window.location.search);
     const editId = params.get('id');
@@ -329,6 +409,8 @@ Tips:
         document.getElementById('tags').value = (editingPost.tags || []).join(', ');
         document.getElementById('content').value = editingPost.content;
         document.getElementById('titleCount').textContent = editingPost.title.length;
+        await loadCategoriesPromise;
+        if (editingPost.category) categorySelect.value = editingPost.category;
         if (editingPost.image) {
           imageField.value = editingPost.image;
           postImagePreview.src = editingPost.image;
@@ -462,8 +544,15 @@ Tips:
         return;
       }
 
+      if (categorySelect.value === '__new__') {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Finish adding the new category (or pick an existing one) before saving.';
+        return;
+      }
+
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const image = imageField.value || null;
+      const category = categorySelect.value || null;
       const now = new Date();
       const wasNew = !editingPost;
       const wasPublished = editingPost && editingPost.status === 'Published';
@@ -473,6 +562,7 @@ Tips:
         tags,
         content,
         image,
+        category,
         status,
         date: editingPost ? editingPost.date : now.toISOString().slice(0, 10),
         createdAt: editingPost ? editingPost.createdAt : Date.now(),
