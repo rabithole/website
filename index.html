@@ -377,7 +377,7 @@
 
   <!-- QUICK STATS -->
   <div class="quick-stats">
-    <div class="stats-row">
+    <div class="stats-row" id="quickStatsRow">
       <div class="stat">
         <div class="stat-value">50+</div>
         <div class="stat-label">Parts Sold</div>
@@ -768,6 +768,23 @@
           </div>
         </a>
       `).join('');
+    })();
+
+    (async function renderQuickStats() {
+      const row = document.getElementById('quickStatsRow');
+      if (!row || !window.RabitholeDB) return;
+      try {
+        const { stats } = await RabitholeDB.getQuickStats();
+        if (!Array.isArray(stats) || stats.length === 0) return;
+        row.innerHTML = stats.map(s => `
+          <div class="stat">
+            <div class="stat-value">${escapeHtml(s.value)}</div>
+            <div class="stat-label">${escapeHtml(s.label)}</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        // Leave the static fallback markup in place.
+      }
     })();
   </script>
 </body>

@@ -40,6 +40,9 @@ API:
     GET  /api/requests                    (Authorization: Bearer <token>) list all requests
     PUT  /api/requests/<id>                (Authorization: Bearer <token>) update status
     DELETE /api/requests/<id>              (Authorization: Bearer <token>) delete a request
+    GET  /api/quick-stats                  public — resolved homepage "Quick Stats" row
+    GET  /api/quick-stats/settings         (Authorization: Bearer <token>) mode + editable values
+    PUT  /api/quick-stats/settings         (Authorization: Bearer <token>) {mode, custom} save
 
 The owner account is seeded on first run via manage_users.py — see that
 script to create or reset an account rather than relying on a hardcoded
@@ -81,6 +84,19 @@ UPLOAD_CONTENT_TYPES = {
     "image/webp": "webp",
     "image/gif": "gif",
 }
+
+# Homepage "Quick Stats" row. Slots 0 (Parts Sold) and 2 (RC Projects) can be
+# switched to a live database count; slots 1 and 3 are personal facts, not
+# metrics, so they're always the custom text below. DEFAULT_QUICK_STATS is
+# also what "reset to original" restores, so it must stay in sync with
+# whatever index.html originally shipped with.
+DEFAULT_QUICK_STATS = [
+    {"value": "50+", "label": "Parts Sold"},
+    {"value": "WSU", "label": "MechE Student"},
+    {"value": "12+", "label": "RC Projects"},
+    {"value": "∞", "label": "Rabbit Hole Depth"},
+]
+LIVE_QUICK_STAT_SLOTS = (0, 2)
 
 # Everything the static file handler is allowed to serve. Anything else under
 # ROOT (server.py, manage_users.py, paypal_config.json, db/, .claude/, ...) is
@@ -195,6 +211,31 @@ def set_setting(conn, key, value):
         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (key, value),
     )
+
+
+def resolve_quick_stats(conn):
+    """Return the 4 homepage quick-stat entries, substituting live counts
+    into slots 0/2 when quick_stats_mode is 'live'."""
+    raw = get_setting(conn, "quick_stats_custom")
+    try:
+        stats = json.loads(raw) if raw else None
+    except Exception:
+        stats = None
+    if not isinstance(stats, list) or len(stats) != len(DEFAULT_QUICK_STATS):
+        stats = [dict(s) for s in DEFAULT_QUICK_STATS]
+    else:
+        stats = [dict(s) for s in stats]
+
+    if get_setting(conn, "quick_stats_mode", "custom") == "live":
+        parts_sold = conn.execute(
+            "SELECT COUNT(*) FROM orders WHERE status = 'COMPLETED'"
+        ).fetchone()[0]
+        project_count = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+        live_values = {0: str(parts_sold), 2: str(project_count)}
+        for slot, value in live_values.items():
+            stats[slot]["value"] = value
+
+    return stats
 
 
 def hash_password(password: str, salt: str):
@@ -461,6 +502,34 @@ class Handler(SimpleHTTPRequestHandler):
             sales_paused = get_setting(conn, "sales_paused", "0") == "1"
             conn.close()
             return self._send_json({"salesPaused": sales_paused})
+
+        if path == "/api/quick-stats":
+            conn = get_db()
+            stats = resolve_quick_stats(conn)
+            conn.close()
+            return self._send_json({"stats": stats})
+
+        if path == "/api/quick-stats/settings":
+            if not self._require_auth():
+                return
+            conn = get_db()
+            raw = get_setting(conn, "quick_stats_custom")
+            try:
+                custom = json.loads(raw) if raw else None
+            except Exception:
+                custom = None
+            if not isinstance(custom, list) or len(custom) != len(DEFAULT_QUICK_STATS):
+                custom = [dict(s) for s in DEFAULT_QUICK_STATS]
+            mode = get_setting(conn, "quick_stats_mode", "custom")
+            conn.close()
+            return self._send_json(
+                {
+                    "mode": mode,
+                    "custom": custom,
+                    "liveSlots": list(LIVE_QUICK_STAT_SLOTS),
+                    "defaults": DEFAULT_QUICK_STATS,
+                }
+            )
 
         if path == "/api/orders":
             if not self._require_auth():
@@ -1047,6 +1116,37 @@ class Handler(SimpleHTTPRequestHandler):
             conn.commit()
             conn.close()
             return self._send_json({"salesPaused": bool(data["salesPaused"])})
+
+        if path == "/api/quick-stats/settings":
+            if not self._require_auth():
+                return
+            mode = data.get("mode")
+            custom = data.get("custom")
+            if mode not in ("live", "custom"):
+                return self._send_json({"error": "mode must be 'live' or 'custom'"}, 400)
+            if (
+                not isinstance(custom, list)
+                or len(custom) != len(DEFAULT_QUICK_STATS)
+                or not all(
+                    isinstance(s, dict) and "value" in s and "label" in s
+                    for s in custom
+                )
+            ):
+                return self._send_json(
+                    {"error": f"custom must be a list of {len(DEFAULT_QUICK_STATS)} {{value, label}} entries"},
+                    400,
+                )
+            conn = get_db()
+            set_setting(conn, "quick_stats_mode", mode)
+            set_setting(
+                conn,
+                "quick_stats_custom",
+                json.dumps([{"value": str(s["value"]), "label": str(s["label"])} for s in custom]),
+            )
+            conn.commit()
+            stats = resolve_quick_stats(conn)
+            conn.close()
+            return self._send_json({"mode": mode, "stats": stats})
 
         if path == "/api/me":
             user = self._require_auth()

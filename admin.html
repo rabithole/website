@@ -139,9 +139,41 @@
     }
     .btn-resume:hover { background: #4bc98d; }
 
+    .quick-stats-editor {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.4rem; margin-bottom: 2rem;
+    }
+    .qse-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem; margin-bottom: 1.2rem;
+    }
+    .qse-header h2 { font-size: 1rem; margin-bottom: 0.15rem; }
+    .qse-header p { color: var(--text-muted); font-size: 0.85rem; margin: 0; }
+    .qse-toggle {
+      display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;
+      color: var(--text); cursor: pointer; white-space: nowrap;
+    }
+    .qse-rows { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.2rem; }
+    .qse-row {
+      display: grid; grid-template-columns: 1fr 1.6fr; gap: 0.7rem; align-items: center;
+    }
+    .qse-row input {
+      width: 100%; padding: 0.55rem 0.75rem; border-radius: 8px;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+      font-size: 0.9rem; font-family: inherit; outline: none;
+    }
+    .qse-row input:focus { border-color: var(--orange); }
+    .qse-row input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .qse-live-hint { font-size: 0.72rem; color: var(--cyan); margin-top: 0.2rem; }
+    .qse-actions { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+    .qse-status { font-size: 0.85rem; color: var(--text-muted); }
+    .qse-status.success { color: #5ddea0; }
+    .qse-status.error { color: #ff8a8a; }
+
     @media (max-width: 640px) {
       .grid, .stats { grid-template-columns: 1fr; }
       .store-status { flex-direction: column; align-items: stretch; }
+      .qse-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -176,6 +208,25 @@
         </div>
       </div>
       <button id="storeStatusToggle" class="btn-danger-outline">Stop All Sales</button>
+    </div>
+
+    <div class="quick-stats-editor" id="quickStatsEditor">
+      <div class="qse-header">
+        <div>
+          <h2>Homepage Quick Stats</h2>
+          <p>Controls the stat row at the top of your homepage.</p>
+        </div>
+        <label class="qse-toggle">
+          <input type="checkbox" id="qseLiveToggle">
+          Use live counts for Parts Sold &amp; RC Projects
+        </label>
+      </div>
+      <div class="qse-rows" id="qseRows"></div>
+      <div class="qse-actions">
+        <button class="btn btn-primary" id="qseSaveBtn">Save Changes</button>
+        <button class="btn btn-secondary" id="qseResetBtn">Reset to Original</button>
+        <span id="qseStatus" class="qse-status"></span>
+      </div>
     </div>
 
     <div class="stats" id="stats">
@@ -346,6 +397,114 @@
         renderStoreStatus(result.salesPaused);
       } catch (err) {
         alert('Could not update store status: ' + err.message);
+      }
+    });
+
+    // Quick Stats editor (homepage stat row)
+    const QSE_LIVE_SLOTS = [0, 2];
+
+    function buildQseRow(index, entry, isLiveSlot, liveModeOn) {
+      const row = document.createElement('div');
+      row.className = 'qse-row';
+
+      const valueWrap = document.createElement('div');
+      const valueLabel = document.createElement('label');
+      valueLabel.textContent = 'Value';
+      valueLabel.style.cssText = 'display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.2rem;';
+      const valueInput = document.createElement('input');
+      valueInput.type = 'text';
+      valueInput.dataset.slot = index;
+      valueInput.dataset.field = 'value';
+      valueInput.value = entry.value;
+      valueInput.disabled = isLiveSlot && liveModeOn;
+      valueWrap.append(valueLabel, valueInput);
+      if (isLiveSlot) {
+        const hint = document.createElement('div');
+        hint.className = 'qse-live-hint';
+        hint.textContent = liveModeOn ? 'Live count — computed automatically' : 'Eligible for live count (toggle above)';
+        valueWrap.appendChild(hint);
+      }
+
+      const labelWrap = document.createElement('div');
+      const labelLabel = document.createElement('label');
+      labelLabel.textContent = 'Label';
+      labelLabel.style.cssText = 'display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.2rem;';
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.dataset.slot = index;
+      labelInput.dataset.field = 'label';
+      labelInput.value = entry.label;
+      labelWrap.append(labelLabel, labelInput);
+
+      row.append(valueWrap, labelWrap);
+      return row;
+    }
+
+    function renderQseRows(custom, liveModeOn) {
+      const container = document.getElementById('qseRows');
+      container.innerHTML = '';
+      custom.forEach((entry, i) => {
+        container.appendChild(buildQseRow(i, entry, QSE_LIVE_SLOTS.includes(i), liveModeOn));
+      });
+    }
+
+    function collectQseValues() {
+      const result = [];
+      document.querySelectorAll('#qseRows input').forEach(input => {
+        const slot = parseInt(input.dataset.slot, 10);
+        if (!result[slot]) result[slot] = { value: '', label: '' };
+        result[slot][input.dataset.field] = input.value;
+      });
+      return result;
+    }
+
+    (async function loadQuickStatsSettings() {
+      if (!window.RabitholeDB) return;
+      try {
+        const settings = await RabitholeDB.getQuickStatsSettings();
+        document.getElementById('qseLiveToggle').checked = settings.mode === 'live';
+        renderQseRows(settings.custom, settings.mode === 'live');
+      } catch (err) {
+        const statusEl = document.getElementById('qseStatus');
+        statusEl.className = 'qse-status error';
+        statusEl.textContent = 'Could not load: ' + err.message;
+      }
+    })();
+
+    document.getElementById('qseLiveToggle').addEventListener('change', () => {
+      const custom = collectQseValues();
+      renderQseRows(custom, document.getElementById('qseLiveToggle').checked);
+    });
+
+    document.getElementById('qseSaveBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('qseStatus');
+      const mode = document.getElementById('qseLiveToggle').checked ? 'live' : 'custom';
+      const custom = collectQseValues();
+      statusEl.className = 'qse-status';
+      statusEl.textContent = 'Saving…';
+      try {
+        await RabitholeDB.updateQuickStatsSettings(mode, custom);
+        statusEl.className = 'qse-status success';
+        statusEl.textContent = 'Saved.';
+      } catch (err) {
+        statusEl.className = 'qse-status error';
+        statusEl.textContent = 'Save failed: ' + err.message;
+      }
+    });
+
+    document.getElementById('qseResetBtn').addEventListener('click', async () => {
+      if (!confirm('Reset Quick Stats to the original homepage values? This saves immediately.')) return;
+      const statusEl = document.getElementById('qseStatus');
+      try {
+        const settings = await RabitholeDB.getQuickStatsSettings();
+        await RabitholeDB.updateQuickStatsSettings('custom', settings.defaults);
+        document.getElementById('qseLiveToggle').checked = false;
+        renderQseRows(settings.defaults, false);
+        statusEl.className = 'qse-status success';
+        statusEl.textContent = 'Reset to original.';
+      } catch (err) {
+        statusEl.className = 'qse-status error';
+        statusEl.textContent = 'Reset failed: ' + err.message;
       }
     });
   </script>

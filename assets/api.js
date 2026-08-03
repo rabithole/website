@@ -320,6 +320,29 @@
     return r.json();
   }
 
+  // ---------- Homepage Quick Stats ----------
+  async function getQuickStats() {
+    const r = await fetch(API_BASE + '/api/quick-stats');
+    if (!r.ok) throw new Error('Could not load quick stats');
+    return r.json();
+  }
+
+  async function getQuickStatsSettings() {
+    const r = await fetch(API_BASE + '/api/quick-stats/settings', { headers: authHeaders() });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not load quick stats settings');
+    return r.json();
+  }
+
+  async function updateQuickStatsSettings(mode, custom) {
+    const r = await fetch(API_BASE + '/api/quick-stats/settings', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ mode, custom }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not save quick stats');
+    return r.json();
+  }
+
   // ---------- Custom work requests ----------
   async function submitRequest(request) {
     const r = await fetch(API_BASE + '/api/requests', {
@@ -450,5 +473,8 @@
     updateOrderStatus,
     updateOrderTracking,
     deleteOrder,
+    getQuickStats,
+    getQuickStatsSettings,
+    updateQuickStatsSettings,
   };
 })(window);
