@@ -144,6 +144,16 @@
     .section-header p { color: var(--text-muted); max-width: 560px; font-size: 1.05rem; }
     .section-header.center p { margin: 0 auto; }
 
+    .placeholder-notice {
+      background: rgba(255, 180, 0, 0.1); border: 1px solid rgba(255, 180, 0, 0.35);
+      border-radius: var(--radius); padding: 1rem 1.3rem; margin-bottom: 1.8rem;
+      display: flex; align-items: flex-start; gap: 0.7rem; font-size: 0.92rem;
+      max-width: 640px; margin-left: auto; margin-right: auto; text-align: left;
+    }
+    .placeholder-notice .icon { font-size: 1.2rem; line-height: 1.3; flex-shrink: 0; }
+    .placeholder-notice p { margin: 0; color: var(--text); line-height: 1.5; max-width: none; }
+    .placeholder-notice strong { color: #ffcf5c; }
+
     /* ABOUT / RESUME */
     .about-grid {
       display: grid; grid-template-columns: 1fr 1.1fr; gap: 2.5rem; align-items: start;
@@ -488,6 +498,10 @@
         <div style="margin-top:1.2rem; display:flex; gap:0.8rem; justify-content:center; flex-wrap:wrap;">
           <a href="products.html" class="btn btn-secondary" style="font-size:0.9rem; padding:0.55rem 1.1rem;">View full shop</a>
         </div>
+      </div>
+      <div class="placeholder-notice">
+        <span class="icon">🚧</span>
+        <p><strong>Heads up:</strong> the items shown here are placeholder examples of what I'll be selling — not real inventory yet, and not currently available to purchase.</p>
       </div>
       <div class="product-grid">
         <div class="product-card">
