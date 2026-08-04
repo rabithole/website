@@ -221,7 +221,7 @@
       <form id="postForm" novalidate>
         <div class="form-group">
           <label for="title">Title</label>
-          <input type="text" id="title" name="title" placeholder="e.g. Why I switched to PA6-CF for suspension arms" required maxlength="140" autocomplete="off">
+          <input type="text" id="title" name="title" placeholder="e.g. Why I switched to PA6-CF for suspension arms" required maxlength="140" autocomplete="off" spellcheck="true">
           <div class="char-count"><span id="titleCount">0</span>/140</div>
         </div>
 
@@ -231,7 +231,7 @@
             <option value="">No category</option>
           </select>
           <div class="new-category-row" id="newCategoryRow">
-            <input type="text" id="newCategoryInput" placeholder="New category name">
+            <input type="text" id="newCategoryInput" placeholder="New category name" spellcheck="false">
             <button type="button" id="addCategoryBtn">Add</button>
           </div>
           <div class="hint">Pick one category per post, or add a new one on the fly.</div>
@@ -239,7 +239,7 @@
 
         <div class="form-group">
           <label for="tags">Tags <span class="optional">(optional, comma-separated)</span></label>
-          <input type="text" id="tags" name="tags" placeholder="materials, FEA, suspension, 3d-printing">
+          <input type="text" id="tags" name="tags" placeholder="materials, FEA, suspension, 3d-printing" spellcheck="false">
           <div class="hint">Helps readers find related posts later.</div>
         </div>
 
@@ -263,7 +263,7 @@
 Tips:
 • Start with the problem or question
 • Include specific numbers / settings when possible
-• End with what you learned or what you’d do differently" required></textarea>
+• End with what you learned or what you’d do differently" required spellcheck="true"></textarea>
           <div class="hint">Line breaks are preserved. Keep it practical — other builders will thank you.</div>
         </div>
 
