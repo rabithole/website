@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "rabithole",
-      "runtimeExecutable": "C:\\Users\\Robert\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+      "runtimeExecutable": "C:\\Users\\Robert\\AppData\\Local\\Python\\bin\\python.exe",
       "runtimeArgs": ["server.py"],
       "port": 8080
     }

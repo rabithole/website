@@ -359,11 +359,11 @@
     return r.json();
   }
 
-  async function updateQuickStatsSettings(mode, custom) {
+  async function updateQuickStatsSettings(mode, custom, enabled) {
     const r = await fetch(API_BASE + '/api/quick-stats/settings', {
       method: 'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({ mode, custom }),
+      body: JSON.stringify({ mode, custom, enabled }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not save quick stats');
     return r.json();

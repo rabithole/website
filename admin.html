@@ -149,6 +149,7 @@
     }
     .qse-header h2 { font-size: 1rem; margin-bottom: 0.15rem; }
     .qse-header p { color: var(--text-muted); font-size: 0.85rem; margin: 0; }
+    .qse-toggles { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
     .qse-toggle {
       display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;
       color: var(--text); cursor: pointer; white-space: nowrap;
@@ -169,6 +170,7 @@
     .qse-status { font-size: 0.85rem; color: var(--text-muted); }
     .qse-status.success { color: #5ddea0; }
     .qse-status.error { color: #ff8a8a; }
+    .qse-disabled .qse-rows, .qse-disabled .qse-toggle:not(:has(#qseEnabledToggle)) { opacity: 0.5; pointer-events: none; }
 
     @media (max-width: 640px) {
       .grid, .stats { grid-template-columns: 1fr; }
@@ -216,10 +218,16 @@
           <h2>Homepage Quick Stats</h2>
           <p>Controls the stat row at the top of your homepage.</p>
         </div>
-        <label class="qse-toggle">
-          <input type="checkbox" id="qseLiveToggle">
-          Use live counts for Parts Sold &amp; RC Projects
-        </label>
+        <div class="qse-toggles">
+          <label class="qse-toggle">
+            <input type="checkbox" id="qseEnabledToggle" checked>
+            Show this section on the homepage
+          </label>
+          <label class="qse-toggle">
+            <input type="checkbox" id="qseLiveToggle">
+            Use live counts for Parts Sold &amp; RC Projects
+          </label>
+        </div>
       </div>
       <div class="qse-rows" id="qseRows"></div>
       <div class="qse-actions">
@@ -458,11 +466,19 @@
       return result;
     }
 
+    function applyQseEnabled(enabled) {
+      const editor = document.getElementById('quickStatsEditor');
+      editor.classList.toggle('qse-disabled', !enabled);
+    }
+
     (async function loadQuickStatsSettings() {
       if (!window.RabitholeDB) return;
       try {
         const settings = await RabitholeDB.getQuickStatsSettings();
+        const enabled = settings.enabled !== false;
+        document.getElementById('qseEnabledToggle').checked = enabled;
         document.getElementById('qseLiveToggle').checked = settings.mode === 'live';
+        applyQseEnabled(enabled);
         renderQseRows(settings.custom, settings.mode === 'live');
       } catch (err) {
         const statusEl = document.getElementById('qseStatus');
@@ -470,6 +486,10 @@
         statusEl.textContent = 'Could not load: ' + err.message;
       }
     })();
+
+    document.getElementById('qseEnabledToggle').addEventListener('change', () => {
+      applyQseEnabled(document.getElementById('qseEnabledToggle').checked);
+    });
 
     document.getElementById('qseLiveToggle').addEventListener('change', () => {
       const custom = collectQseValues();
@@ -479,11 +499,12 @@
     document.getElementById('qseSaveBtn').addEventListener('click', async () => {
       const statusEl = document.getElementById('qseStatus');
       const mode = document.getElementById('qseLiveToggle').checked ? 'live' : 'custom';
+      const enabled = document.getElementById('qseEnabledToggle').checked;
       const custom = collectQseValues();
       statusEl.className = 'qse-status';
       statusEl.textContent = 'Saving…';
       try {
-        await RabitholeDB.updateQuickStatsSettings(mode, custom);
+        await RabitholeDB.updateQuickStatsSettings(mode, custom, enabled);
         statusEl.className = 'qse-status success';
         statusEl.textContent = 'Saved.';
       } catch (err) {
@@ -497,8 +518,10 @@
       const statusEl = document.getElementById('qseStatus');
       try {
         const settings = await RabitholeDB.getQuickStatsSettings();
-        await RabitholeDB.updateQuickStatsSettings('custom', settings.defaults);
+        await RabitholeDB.updateQuickStatsSettings('custom', settings.defaults, true);
+        document.getElementById('qseEnabledToggle').checked = true;
         document.getElementById('qseLiveToggle').checked = false;
+        applyQseEnabled(true);
         renderQseRows(settings.defaults, false);
         statusEl.className = 'qse-status success';
         statusEl.textContent = 'Reset to original.';

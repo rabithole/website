@@ -555,7 +555,7 @@
   <section id="projects">
     <div class="section-inner">
       <div class="section-header">
-        <h2>RC Projects</h2>
+        <h2>CAD Projects</h2>
         <p>Selected builds that taught me the most — from chassis redesigns to suspension geometry experiments.</p>
         <div style="margin-top:1.2rem;">
           <a href="projects.html" class="btn btn-secondary" style="font-size:0.9rem; padding:0.55rem 1.1rem;">View all projects →</a>
@@ -786,9 +786,14 @@
 
     (async function renderQuickStats() {
       const row = document.getElementById('quickStatsRow');
+      const section = row ? row.closest('.quick-stats') : null;
       if (!row || !window.RabitholeDB) return;
       try {
-        const { stats } = await RabitholeDB.getQuickStats();
+        const { stats, enabled } = await RabitholeDB.getQuickStats();
+        if (enabled === false) {
+          if (section) section.style.display = 'none';
+          return;
+        }
         if (!Array.isArray(stats) || stats.length === 0) return;
         row.innerHTML = stats.map(s => `
           <div class="stat">

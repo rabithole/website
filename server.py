@@ -43,9 +43,9 @@ API:
     GET  /api/requests                    (Authorization: Bearer <token>) list all requests
     PUT  /api/requests/<id>                (Authorization: Bearer <token>) update status
     DELETE /api/requests/<id>              (Authorization: Bearer <token>) delete a request
-    GET  /api/quick-stats                  public — resolved homepage "Quick Stats" row
-    GET  /api/quick-stats/settings         (Authorization: Bearer <token>) mode + editable values
-    PUT  /api/quick-stats/settings         (Authorization: Bearer <token>) {mode, custom} save
+    GET  /api/quick-stats                  public — resolved homepage "Quick Stats" row + enabled flag
+    GET  /api/quick-stats/settings         (Authorization: Bearer <token>) mode + enabled + editable values
+    PUT  /api/quick-stats/settings         (Authorization: Bearer <token>) {mode, custom, enabled} save
 
 The owner account is seeded on first run via manage_users.py — see that
 script to create or reset an account rather than relying on a hardcoded
@@ -517,9 +517,10 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path == "/api/quick-stats":
             conn = get_db()
+            enabled = get_setting(conn, "quick_stats_enabled", "1") == "1"
             stats = resolve_quick_stats(conn)
             conn.close()
-            return self._send_json({"stats": stats})
+            return self._send_json({"stats": stats, "enabled": enabled})
 
         if path == "/api/quick-stats/settings":
             if not self._require_auth():
@@ -533,11 +534,13 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(custom, list) or len(custom) != len(DEFAULT_QUICK_STATS):
                 custom = [dict(s) for s in DEFAULT_QUICK_STATS]
             mode = get_setting(conn, "quick_stats_mode", "custom")
+            enabled = get_setting(conn, "quick_stats_enabled", "1") == "1"
             conn.close()
             return self._send_json(
                 {
                     "mode": mode,
                     "custom": custom,
+                    "enabled": enabled,
                     "liveSlots": list(LIVE_QUICK_STAT_SLOTS),
                     "defaults": DEFAULT_QUICK_STATS,
                 }
@@ -1183,8 +1186,10 @@ class Handler(SimpleHTTPRequestHandler):
                     {"error": f"custom must be a list of {len(DEFAULT_QUICK_STATS)} {{value, label}} entries"},
                     400,
                 )
+            enabled = data.get("enabled", True)
             conn = get_db()
             set_setting(conn, "quick_stats_mode", mode)
+            set_setting(conn, "quick_stats_enabled", "1" if enabled else "0")
             set_setting(
                 conn,
                 "quick_stats_custom",
@@ -1193,7 +1198,7 @@ class Handler(SimpleHTTPRequestHandler):
             conn.commit()
             stats = resolve_quick_stats(conn)
             conn.close()
-            return self._send_json({"mode": mode, "stats": stats})
+            return self._send_json({"mode": mode, "enabled": bool(enabled), "stats": stats})
 
         if path == "/api/me":
             user = self._require_auth()
