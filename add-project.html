@@ -104,7 +104,7 @@
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
     .char-count { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
-    .char-count.ok { color: #5ddea0; }
+    .char-count.warn { color: #ffc107; }
 
     .image-option-upload {
       width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
@@ -251,10 +251,10 @@
         </div>
 
         <div class="form-group" id="imageDescriptionGroup" style="display:none;">
-          <label for="imageDescription">Cover Image Description</label>
-          <textarea id="imageDescription" name="imageDescription" placeholder="Describe what's shown in the cover photo — angle, what to notice, the state of the build…" style="min-height:140px;" spellcheck="true"></textarea>
-          <div class="hint">Required once you've added a cover photo — at least 500 characters.</div>
-          <div class="char-count"><span id="imageDescriptionCount">0</span>/500 minimum</div>
+          <label for="imageDescription">Cover Image Description <span class="optional">(optional)</span></label>
+          <textarea id="imageDescription" name="imageDescription" placeholder="Describe what's shown in the cover photo — angle, what to notice, the state of the build…" style="min-height:140px;" maxlength="500" spellcheck="true"></textarea>
+          <div class="hint">Up to 500 characters.</div>
+          <div class="char-count"><span id="imageDescriptionCount">0</span>/500</div>
         </div>
 
         <div class="form-group">
@@ -292,7 +292,7 @@
 
     uploadOption.addEventListener('click', () => imageFileInput.click());
 
-    // Cover Image Description is only required (and only shown) once a cover photo is attached.
+    // Cover Image Description is optional, shown once a cover photo is attached, capped at 500 characters.
     const imageDescriptionGroup = document.getElementById('imageDescriptionGroup');
     const imageDescriptionField = document.getElementById('imageDescription');
     const imageDescriptionCount = document.getElementById('imageDescriptionCount');
@@ -302,9 +302,9 @@
     }
 
     function updateImageDescriptionCount() {
-      const len = imageDescriptionField.value.trim().length;
+      const len = imageDescriptionField.value.length;
       imageDescriptionCount.textContent = len;
-      imageDescriptionCount.parentElement.classList.toggle('ok', len >= 500);
+      imageDescriptionCount.parentElement.classList.toggle('warn', len >= 450);
     }
 
     imageDescriptionField.addEventListener('input', updateImageDescriptionCount);
@@ -543,9 +543,9 @@
         statusEl.textContent = 'Title and description are required.';
         return;
       }
-      if (image && imageDescription.length < 500) {
+      if (imageDescription.length > 500) {
         statusEl.className = 'status error';
-        statusEl.textContent = `Cover image description must be at least 500 characters (currently ${imageDescription.length}).`;
+        statusEl.textContent = `Cover image description must be 500 characters or fewer (currently ${imageDescription.length}).`;
         return;
       }
       if (!window.RabitholeDB) {

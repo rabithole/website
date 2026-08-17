@@ -80,7 +80,7 @@ PORT = 8080
 SESSION_DAYS = 7
 FULFILLMENT_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
 REQUEST_STATUSES = {"New", "In Progress", "Completed", "Declined"}
-MIN_IMAGE_DESCRIPTION_LENGTH = 500
+MAX_IMAGE_DESCRIPTION_LENGTH = 500
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 UPLOAD_CONTENT_TYPES = {
     "image/png": "png",
@@ -250,15 +250,12 @@ def hash_password(password: str, salt: str):
 
 
 def image_description_error(data):
-    """None unless an image is attached without a sufficiently long imageDescription
-    to go with it — images are optional, but an image without a description isn't."""
-    if not (data.get("image") or "").strip():
-        return None
+    """None unless the (optional) imageDescription exceeds the character cap."""
     text = (data.get("imageDescription") or "").strip()
-    if len(text) < MIN_IMAGE_DESCRIPTION_LENGTH:
+    if len(text) > MAX_IMAGE_DESCRIPTION_LENGTH:
         return (
-            f"Image description must be at least {MIN_IMAGE_DESCRIPTION_LENGTH} "
-            f"characters (currently {len(text)})."
+            f"Image description must be {MAX_IMAGE_DESCRIPTION_LENGTH} characters "
+            f"or fewer (currently {len(text)})."
         )
     return None
 
