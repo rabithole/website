@@ -80,6 +80,7 @@ PORT = 8080
 SESSION_DAYS = 7
 FULFILLMENT_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
 REQUEST_STATUSES = {"New", "In Progress", "Completed", "Declined"}
+MIN_IMAGE_DESCRIPTION_LENGTH = 500
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 UPLOAD_CONTENT_TYPES = {
     "image/png": "png",
@@ -248,6 +249,20 @@ def hash_password(password: str, salt: str):
     return dk.hex()
 
 
+def image_description_error(data):
+    """None unless an image is attached without a sufficiently long imageDescription
+    to go with it — images are optional, but an image without a description isn't."""
+    if not (data.get("image") or "").strip():
+        return None
+    text = (data.get("imageDescription") or "").strip()
+    if len(text) < MIN_IMAGE_DESCRIPTION_LENGTH:
+        return (
+            f"Image description must be at least {MIN_IMAGE_DESCRIPTION_LENGTH} "
+            f"characters (currently {len(text)})."
+        )
+    return None
+
+
 def row_to_product(row):
     return {
         "id": row["id"],
@@ -255,8 +270,10 @@ def row_to_product(row):
         "price": row["price"],
         "category": row["category"],
         "status": row["status"],
+        "published": row["published"] if "published" in row.keys() else "Published",
         "description": row["description"],
         "image": row["image"],
+        "imageDescription": row["image_description"] if "image_description" in row.keys() else None,
         "shippingInfo": row["shipping_info"],
         "stockQuantity": row["stock_quantity"],
         "createdAt": row["created_at"],
@@ -276,6 +293,7 @@ def row_to_post(row):
         "tags": tags,
         "content": row["content"],
         "image": row["image"],
+        "imageDescription": row["image_description"] if "image_description" in row.keys() else None,
         "status": row["status"] if "status" in row.keys() else "Published",
         "category": row["category"] if "category" in row.keys() else None,
         "date": row["date"],
@@ -309,8 +327,10 @@ def row_to_project(row):
         "description": row["description"],
         "content": row["content"],
         "image": row["image"],
+        "imageDescription": row["image_description"] if "image_description" in row.keys() else None,
         "images": images,
         "tags": tags,
+        "status": row["status"] if "status" in row.keys() else "Published",
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -558,9 +578,14 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path == "/api/products":
             conn = get_db()
-            rows = conn.execute(
-                "SELECT * FROM products ORDER BY created_at DESC"
-            ).fetchall()
+            if self._current_user():
+                rows = conn.execute(
+                    "SELECT * FROM products ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM products WHERE published = 'Published' ORDER BY created_at DESC"
+                ).fetchall()
             conn.close()
             return self._send_json([row_to_product(r) for r in rows])
 
@@ -572,6 +597,8 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             conn.close()
             if not row:
+                return self._send_json({"error": "Not found"}, 404)
+            if row["published"] != "Published" and not self._current_user():
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_product(row))
 
@@ -611,9 +638,14 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path == "/api/projects":
             conn = get_db()
-            rows = conn.execute(
-                "SELECT * FROM projects ORDER BY created_at DESC"
-            ).fetchall()
+            if self._current_user():
+                rows = conn.execute(
+                    "SELECT * FROM projects ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM projects WHERE status = 'Published' ORDER BY created_at DESC"
+                ).fetchall()
             conn.close()
             return self._send_json([row_to_project(r) for r in rows])
 
@@ -625,6 +657,8 @@ class Handler(SimpleHTTPRequestHandler):
             ).fetchone()
             conn.close()
             if not row:
+                return self._send_json({"error": "Not found"}, 404)
+            if row["status"] != "Published" and not self._current_user():
                 return self._send_json({"error": "Not found"}, 404)
             return self._send_json(row_to_project(row))
 
@@ -987,6 +1021,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/products":
             if not self._require_auth():
                 return
+            img_err = image_description_error(data)
+            if img_err:
+                return self._send_json({"error": img_err}, 400)
             pid = data.get("id") or f"prod-{int(time.time() * 1000)}"
             now = int(time.time() * 1000)
             stock_quantity = data.get("stockQuantity")
@@ -994,16 +1031,20 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO products
-                   (id, name, price, category, status, description, image, shipping_info, stock_quantity, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                   (id, name, price, category, status, published, description, image, image_description, shipping_info, stock_quantity, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["name"],
                     float(data["price"]),
                     data["category"],
                     data.get("status", "Available"),
+                    # New products always start unpublished — publishing is a
+                    # deliberate, separate step taken after creation.
+                    "Draft",
                     data["description"],
                     data.get("image") or "",
+                    data.get("imageDescription") or None,
                     data.get("shippingInfo") or None,
                     stock_quantity,
                     data.get("createdAt", now),
@@ -1021,6 +1062,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/posts":
             if not self._require_auth():
                 return
+            img_err = image_description_error(data)
+            if img_err:
+                return self._send_json({"error": img_err}, 400)
             pid = data.get("id") or f"post-{int(time.time() * 1000)}"
             now = int(time.time() * 1000)
             tags = data.get("tags", [])
@@ -1029,15 +1073,18 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO posts
-                   (id, title, tags, content, image, status, category, date, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (id, title, tags, content, image, image_description, status, category, date, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     tags,
                     data["content"],
                     data.get("image") or None,
-                    data.get("status", "Published"),
+                    data.get("imageDescription") or None,
+                    # New posts always start unpublished — publishing is a
+                    # deliberate, separate step taken after creation.
+                    "Draft",
                     data.get("category") or None,
                     data.get("date", time.strftime("%Y-%m-%d")),
                     data.get("createdAt", now),
@@ -1081,6 +1128,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/projects":
             if not self._require_auth():
                 return
+            img_err = image_description_error(data)
+            if img_err:
+                return self._send_json({"error": img_err}, 400)
             pid = data.get("id") or f"project-{int(time.time() * 1000)}"
             now = int(time.time() * 1000)
             tags = data.get("tags", [])
@@ -1092,16 +1142,20 @@ class Handler(SimpleHTTPRequestHandler):
             conn = get_db()
             conn.execute(
                 """INSERT INTO projects
-                   (id, title, description, image, images, tags, content, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                   (id, title, description, image, image_description, images, tags, content, status, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     pid,
                     data["title"],
                     data["description"],
                     data.get("image") or "",
+                    data.get("imageDescription") or None,
                     images,
                     tags,
                     data.get("content") or None,
+                    # New projects always start unpublished — publishing is a
+                    # deliberate, separate step taken after creation.
+                    "Draft",
                     data.get("createdAt", now),
                     None,
                 ),
@@ -1256,23 +1310,31 @@ class Handler(SimpleHTTPRequestHandler):
             pid = path.split("/api/products/", 1)[1]
             conn = get_db()
             existing = conn.execute(
-                "SELECT id FROM products WHERE id = ?", (pid,)
+                "SELECT * FROM products WHERE id = ?", (pid,)
             ).fetchone()
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
+            img_err = image_description_error(data)
+            if img_err:
+                conn.close()
+                return self._send_json({"error": img_err}, 400)
             stock_quantity = data.get("stockQuantity")
             stock_quantity = int(stock_quantity) if stock_quantity not in (None, "") else None
             conn.execute(
-                """UPDATE products SET name=?, price=?, category=?, status=?,
-                   description=?, image=?, shipping_info=?, stock_quantity=?, updated_at=? WHERE id=?""",
+                """UPDATE products SET name=?, price=?, category=?, status=?, published=?,
+                   description=?, image=?, image_description=?, shipping_info=?, stock_quantity=?, updated_at=? WHERE id=?""",
                 (
                     data["name"],
                     float(data["price"]),
                     data["category"],
                     data.get("status", "Available"),
+                    # Only an explicit edit can change publish state — if the
+                    # caller doesn't send it, leave it exactly as it was.
+                    data.get("published", existing["published"]),
                     data["description"],
                     data.get("image") or "",
+                    data.get("imageDescription") or None,
                     data.get("shippingInfo") or None,
                     stock_quantity,
                     now,
@@ -1295,19 +1357,26 @@ class Handler(SimpleHTTPRequestHandler):
                 tags = json.dumps(tags)
             conn = get_db()
             existing = conn.execute(
-                "SELECT id FROM posts WHERE id = ?", (pid,)
+                "SELECT * FROM posts WHERE id = ?", (pid,)
             ).fetchone()
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
+            img_err = image_description_error(data)
+            if img_err:
+                conn.close()
+                return self._send_json({"error": img_err}, 400)
             conn.execute(
-                "UPDATE posts SET title=?, tags=?, content=?, image=?, status=?, category=?, updated_at=? WHERE id=?",
+                "UPDATE posts SET title=?, tags=?, content=?, image=?, image_description=?, status=?, category=?, updated_at=? WHERE id=?",
                 (
                     data["title"],
                     tags,
                     data["content"],
                     data.get("image") or None,
-                    data.get("status", "Published"),
+                    data.get("imageDescription") or None,
+                    # Only an explicit edit can change publish state — if the
+                    # caller doesn't send it, leave it exactly as it was.
+                    data.get("status", existing["status"]),
                     data.get("category") or None,
                     now,
                     pid,
@@ -1332,20 +1401,28 @@ class Handler(SimpleHTTPRequestHandler):
                 images = json.dumps(images)
             conn = get_db()
             existing = conn.execute(
-                "SELECT id FROM projects WHERE id = ?", (pid,)
+                "SELECT * FROM projects WHERE id = ?", (pid,)
             ).fetchone()
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
+            img_err = image_description_error(data)
+            if img_err:
+                conn.close()
+                return self._send_json({"error": img_err}, 400)
             conn.execute(
-                "UPDATE projects SET title=?, description=?, image=?, images=?, tags=?, content=?, updated_at=? WHERE id=?",
+                "UPDATE projects SET title=?, description=?, image=?, image_description=?, images=?, tags=?, content=?, status=?, updated_at=? WHERE id=?",
                 (
                     data["title"],
                     data["description"],
                     data.get("image") or "",
+                    data.get("imageDescription") or None,
                     images,
                     tags,
                     data.get("content") or None,
+                    # Only an explicit edit can change publish state — if the
+                    # caller doesn't send it, leave it exactly as it was.
+                    data.get("status", existing["status"]),
                     now,
                     pid,
                 ),
@@ -1550,6 +1627,14 @@ def main():
         conn.execute("ALTER TABLE products ADD COLUMN shipping_info TEXT")
     if "stock_quantity" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN stock_quantity INTEGER")
+    if "published" not in product_cols:
+        # Existing products were already live — default them to Published so this
+        # migration doesn't retroactively pull anything off the shop page. New
+        # products are forced to Draft at creation time regardless of this default
+        # (see the POST /api/products handler).
+        conn.execute("ALTER TABLE products ADD COLUMN published TEXT NOT NULL DEFAULT 'Published'")
+    if "image_description" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN image_description TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -1589,6 +1674,14 @@ def main():
         conn.execute("ALTER TABLE projects ADD COLUMN content TEXT")
     if "images" not in project_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN images TEXT NOT NULL DEFAULT '[]'")
+    if "status" not in project_cols:
+        # Existing projects were already live — default them to Published so this
+        # migration doesn't retroactively pull anything off the site. New projects
+        # are forced to Draft at creation time regardless of this default (see the
+        # POST /api/projects handler).
+        conn.execute("ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'Published'")
+    if "image_description" not in project_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN image_description TEXT")
     post_cols = [r[1] for r in conn.execute("PRAGMA table_info(posts)").fetchall()]
     if post_cols and "image" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN image TEXT")
@@ -1596,6 +1689,8 @@ def main():
         conn.execute("ALTER TABLE posts ADD COLUMN status TEXT NOT NULL DEFAULT 'Published'")
     if post_cols and "category" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN category TEXT")
+    if post_cols and "image_description" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN image_description TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS blog_categories (
             id TEXT PRIMARY KEY,

@@ -158,6 +158,11 @@
     }
     .detail-img img { width: 100%; height: auto; display: block; }
     .detail-img .img-placeholder { height: 320px; }
+    .image-description {
+      color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;
+      padding: 0.9rem 1rem; margin: 0; white-space: pre-wrap;
+      border-top: 1px solid var(--border);
+    }
 
     .detail-info h1 {
       font-family: 'Orbitron', sans-serif; font-size: 1.6rem; margin-bottom: 0.5rem; line-height: 1.25;
@@ -424,6 +429,7 @@
       document.getElementById('detailContent').innerHTML = `
         <div class="detail-img">
           ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">` : '<div class="img-placeholder">No Image</div>'}
+          ${p.image && p.imageDescription ? `<p class="image-description">${escapeHtml(p.imageDescription)}</p>` : ''}
         </div>
         <div class="detail-info">
           <h1>${escapeHtml(p.name)}</h1>

@@ -97,6 +97,13 @@
       padding: 0.16rem 0.48rem; border-radius: 5px; display: inline-block; margin: 0.1rem 0.2rem 0.1rem 0;
     }
 
+    .status-pill {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+      padding: 0.2rem 0.55rem; border-radius: 999px; display: inline-block;
+    }
+    .status-pill.Draft { background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffc107; }
+    .status-pill.Published { background: rgba(0,180,100,0.12); border: 1px solid rgba(0,180,100,0.35); color: #5ddea0; }
+
     .row-actions { display: flex; gap: 0.6rem; }
     .btn-edit, .btn-delete {
       background: transparent; border: 1px solid var(--border); color: var(--text-muted);
@@ -187,6 +194,7 @@
             <tr>
               <th>Project</th>
               <th>Tags</th>
+              <th>Published</th>
               <th></th>
             </tr>
           </thead>
@@ -200,9 +208,11 @@
                   </div>
                 </td>
                 <td data-label="Tags">${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
+                <td data-label="Published"><span class="status-pill ${p.status === 'Published' ? 'Published' : 'Draft'}">${p.status === 'Published' ? 'Published' : 'Draft'}</span></td>
                 <td data-label="">
                   <div class="row-actions">
                     <a class="btn-edit" href="add-project.html?id=${encodeURIComponent(p.id)}">Edit</a>
+                    <button class="btn-edit" onclick="handleToggleStatus('${p.id}', '${p.status === 'Published' ? 'Published' : 'Draft'}')">${p.status === 'Published' ? 'Unpublish' : 'Publish'}</button>
                     <button class="btn-delete" onclick="handleDelete('${p.id}')">Delete</button>
                   </div>
                 </td>
@@ -212,6 +222,18 @@
         </table>
       `;
     }
+
+    window.handleToggleStatus = async function (id, currentStatus) {
+      const newStatus = currentStatus === 'Published' ? 'Draft' : 'Published';
+      try {
+        const project = await RabitholeDB.getProject(id);
+        if (!project) return;
+        await RabitholeDB.saveProject({ ...project, status: newStatus, _isEdit: true });
+        load();
+      } catch (err) {
+        alert('Could not update published state: ' + err.message);
+      }
+    };
 
     window.handleDelete = async function (id) {
       if (!confirm('Delete this project permanently? This cannot be undone.')) return;

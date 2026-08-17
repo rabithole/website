@@ -98,6 +98,8 @@
     .status-pill.Available { background: rgba(0,180,100,0.15); color: #5ddea0; }
     .status-pill.Made-to-Order { background: rgba(0,150,220,0.15); color: #6fc8ff; }
     .status-pill.Sold-Out { background: rgba(255,180,0,0.12); color: #ffcf5c; }
+    .status-pill.Draft { background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffc107; }
+    .status-pill.Published { background: rgba(0,180,100,0.12); border: 1px solid rgba(0,180,100,0.35); color: #5ddea0; }
     .hint { font-size: 0.78rem; color: var(--text-muted); }
 
     .row-actions { display: flex; gap: 0.6rem; }
@@ -220,7 +222,8 @@
               <th>Product</th>
               <th>Category</th>
               <th>Price</th>
-              <th>Status</th>
+              <th>Availability</th>
+              <th>Published</th>
               <th>Stock</th>
               <th>Sold</th>
               <th>Revenue</th>
@@ -240,13 +243,15 @@
                 </td>
                 <td data-label="Category">${escapeHtml(p.category)}</td>
                 <td data-label="Price">${formatPrice(p.price)}</td>
-                <td data-label="Status"><span class="status-pill ${statusClass(p.status)}">${escapeHtml(p.status)}</span></td>
+                <td data-label="Availability"><span class="status-pill ${statusClass(p.status)}">${escapeHtml(p.status)}</span></td>
+                <td data-label="Published"><span class="status-pill ${p.published === 'Published' ? 'Published' : 'Draft'}">${p.published === 'Published' ? 'Published' : 'Draft'}</span></td>
                 <td data-label="Stock">${p.stockQuantity === null || p.stockQuantity === undefined ? '<span class="hint">Unlimited</span>' : p.stockQuantity}</td>
                 <td data-label="Sold">${s.units}</td>
                 <td data-label="Revenue">${formatPrice(s.revenue)}</td>
                 <td data-label="">
                   <div class="row-actions">
                     <a class="btn-edit" href="add-product.html?id=${encodeURIComponent(p.id)}">Edit</a>
+                    <button class="btn-edit" onclick="handleTogglePublished('${p.id}', '${p.published === 'Published' ? 'Published' : 'Draft'}')">${p.published === 'Published' ? 'Unpublish' : 'Publish'}</button>
                     <button class="btn-delete" onclick="handleDelete('${p.id}')">Delete</button>
                   </div>
                 </td>
@@ -257,6 +262,18 @@
         </table>
       `;
     }
+
+    window.handleTogglePublished = async function (id, currentPublished) {
+      const newPublished = currentPublished === 'Published' ? 'Draft' : 'Published';
+      try {
+        const product = await RabitholeDB.getProduct(id);
+        if (!product) return;
+        await RabitholeDB.saveProduct({ ...product, published: newPublished, _isEdit: true });
+        load();
+      } catch (err) {
+        alert('Could not update published state: ' + err.message);
+      }
+    };
 
     window.handleDelete = async function (id) {
       if (!confirm('Delete this product permanently? This cannot be undone.')) return;

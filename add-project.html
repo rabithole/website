@@ -103,6 +103,9 @@
 
     .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
 
+    .char-count { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .char-count.ok { color: #5ddea0; }
+
     .image-option-upload {
       width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
       display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -171,6 +174,14 @@
       border: 1px solid rgba(220,60,60,0.35); color: #ff8a8a;
     }
 
+    .status-badge {
+      display: none; align-items: center; gap: 0.3rem;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      padding: 0.25rem 0.6rem; border-radius: 999px; margin-bottom: 0.6rem;
+      background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35); color: #ffc107;
+    }
+    .status-badge.show { display: inline-flex; }
+
     @media (max-width: 560px) {
       .actions { flex-direction: column; align-items: stretch; }
       .btn { justify-content: center; }
@@ -200,8 +211,9 @@
       <span class="step">3. Publish</span>
     </div>
 
+    <span class="status-badge" id="statusBadge">Draft</span>
     <h1 class="page-title" id="pageTitle">Add RC Project</h1>
-    <p class="page-sub" id="pageSub">Share a build. It'll show up in the RC Projects section on the homepage.</p>
+    <p class="page-sub" id="pageSub">Share a build. It's saved as a draft — publish it separately when you're ready for it to show up on the site.</p>
 
     <div class="form-card">
       <form id="projectForm" novalidate>
@@ -238,6 +250,13 @@
           <input type="hidden" id="image" name="image" value="">
         </div>
 
+        <div class="form-group" id="imageDescriptionGroup" style="display:none;">
+          <label for="imageDescription">Cover Image Description</label>
+          <textarea id="imageDescription" name="imageDescription" placeholder="Describe what's shown in the cover photo — angle, what to notice, the state of the build…" style="min-height:140px;" spellcheck="true"></textarea>
+          <div class="hint">Required once you've added a cover photo — at least 500 characters.</div>
+          <div class="char-count"><span id="imageDescriptionCount">0</span>/500 minimum</div>
+        </div>
+
         <div class="form-group">
           <label>Additional Photos <span class="optional">(optional — shown as a gallery on the project's page)</span></label>
           <div class="gallery-grid" id="galleryGrid"></div>
@@ -247,6 +266,7 @@
         </div>
 
         <div class="actions">
+          <button type="button" class="btn btn-secondary" id="saveDraftBtn">Save as Draft</button>
           <button type="submit" class="btn btn-primary" id="submitBtn">Publish Project</button>
           <a href="manage-projects.html" class="btn btn-secondary">Cancel</a>
         </div>
@@ -272,6 +292,23 @@
 
     uploadOption.addEventListener('click', () => imageFileInput.click());
 
+    // Cover Image Description is only required (and only shown) once a cover photo is attached.
+    const imageDescriptionGroup = document.getElementById('imageDescriptionGroup');
+    const imageDescriptionField = document.getElementById('imageDescription');
+    const imageDescriptionCount = document.getElementById('imageDescriptionCount');
+
+    function updateImageDescriptionVisibility() {
+      imageDescriptionGroup.style.display = document.getElementById('image').value ? 'block' : 'none';
+    }
+
+    function updateImageDescriptionCount() {
+      const len = imageDescriptionField.value.trim().length;
+      imageDescriptionCount.textContent = len;
+      imageDescriptionCount.parentElement.classList.toggle('ok', len >= 500);
+    }
+
+    imageDescriptionField.addEventListener('input', updateImageDescriptionCount);
+
     function clearImageSelection() {
       imageFileInput.value = '';
       uploadPreview.src = '';
@@ -279,6 +316,7 @@
       uploadPlaceholder.style.display = 'block';
       clearImageBtn.style.display = 'none';
       document.getElementById('image').value = '';
+      updateImageDescriptionVisibility();
     }
 
     // Removing an image on an already-published project saves immediately —
@@ -333,6 +371,7 @@
         uploadPlaceholder.style.display = 'none';
         clearImageBtn.style.display = 'inline-block';
         uploadStatus.textContent = 'Uploaded.';
+        updateImageDescriptionVisibility();
       } catch (err) {
         uploadStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
         imageFileInput.value = '';
@@ -439,43 +478,74 @@
     const editId = params.get('id');
     let editing = null;
 
+    function refreshButtons() {
+      const badge = document.getElementById('statusBadge');
+      const saveDraftBtn = document.getElementById('saveDraftBtn');
+      const submitBtn = document.getElementById('submitBtn');
+      const isPublished = editing && editing.status === 'Published';
+      badge.classList.toggle('show', !!editing && !isPublished);
+      if (!editing) {
+        // A brand-new project is always saved as a draft first — publishing
+        // is a separate, explicit step you take once it exists.
+        saveDraftBtn.textContent = 'Save as Draft';
+        saveDraftBtn.classList.add('btn-primary');
+        saveDraftBtn.classList.remove('btn-secondary');
+        submitBtn.style.display = 'none';
+        return;
+      }
+      submitBtn.style.display = '';
+      saveDraftBtn.classList.remove('btn-primary');
+      saveDraftBtn.classList.add('btn-secondary');
+      saveDraftBtn.textContent = isPublished ? 'Unpublish' : 'Save Draft';
+      submitBtn.textContent = isPublished ? 'Save Changes' : 'Publish';
+    }
+
     const loadEditPromise = (async function loadEdit() {
-      if (!editId) return;
-      if (!window.RabitholeDB) return;
+      if (!editId) { refreshButtons(); return; }
+      if (!window.RabitholeDB) { refreshButtons(); return; }
       editing = await RabitholeDB.getProject(editId);
       if (editing) {
         document.getElementById('pageTitle').textContent = 'Edit RC Project';
         document.getElementById('pageSub').textContent = 'Update project details and save changes.';
-        document.getElementById('submitBtn').textContent = 'Save Changes';
         document.getElementById('title').value = editing.title;
         document.getElementById('description').value = editing.description;
         document.getElementById('content').value = editing.content || '';
         document.getElementById('tags').value = (editing.tags || []).join(', ');
         document.getElementById('image').value = editing.image || '';
+        imageDescriptionField.value = editing.imageDescription || '';
+        updateImageDescriptionCount();
         if (editing.image) {
           uploadPreview.src = editing.image;
           uploadPreview.style.display = 'block';
           uploadPlaceholder.style.display = 'none';
           clearImageBtn.style.display = 'inline-block';
         }
+        updateImageDescriptionVisibility();
         galleryImages = (editing.images || []).slice();
         renderGallery();
       }
+      refreshButtons();
     })();
 
-    document.getElementById('projectForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+    refreshButtons();
+
+    async function doSave(status) {
       const title = document.getElementById('title').value.trim();
       const description = document.getElementById('description').value.trim();
       const content = document.getElementById('content').value.trim();
       const tagsRaw = document.getElementById('tags').value.trim();
       const image = document.getElementById('image').value;
+      const imageDescription = imageDescriptionField.value.trim();
       const statusEl = document.getElementById('statusMsg');
-      const submitBtn = document.getElementById('submitBtn');
 
       if (!title || !description) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Title and description are required.';
+        return;
+      }
+      if (image && imageDescription.length < 500) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `Cover image description must be at least 500 characters (currently ${imageDescription.length}).`;
         return;
       }
       if (!window.RabitholeDB) {
@@ -484,32 +554,50 @@
         return;
       }
 
+      const wasNew = !editing;
+      const wasPublished = editing && editing.status === 'Published';
       const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const project = {
         id: editing ? editing.id : undefined,
-        title, description, content, tags, image, images: galleryImages,
+        title, description, content, tags, image, imageDescription: image ? imageDescription : '', images: galleryImages, status,
         _isEdit: !!editing,
       };
 
       try {
-        await RabitholeDB.saveProject(project);
+        const saved = await RabitholeDB.saveProject(project);
         document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === 2));
         statusEl.className = 'status success';
-        if (editing) {
-          editing = { ...editing, ...project };
-          statusEl.textContent = 'Changes saved.';
-        } else {
-          statusEl.textContent = 'Project published! Redirecting…';
-          submitBtn.disabled = true;
-          setTimeout(() => {
-            window.location.href = 'manage-projects.html';
-          }, 850);
+        editing = { ...(editing || {}), ...project, ...saved };
+
+        if (wasNew) {
+          history.replaceState(null, '', 'add-project.html?id=' + encodeURIComponent(editing.id));
+          document.getElementById('pageTitle').textContent = 'Edit RC Project';
+          document.getElementById('pageSub').textContent = 'Update project details and save changes.';
         }
+
+        if (status === 'Published') {
+          statusEl.textContent = wasPublished ? 'Changes saved.' : 'Project published! It’s now visible on the site.';
+        } else if (wasPublished) {
+          statusEl.textContent = 'Unpublished — no longer visible on the site.';
+        } else {
+          statusEl.textContent = 'Draft saved.';
+        }
+        refreshButtons();
       } catch (err) {
         statusEl.className = 'status error';
         statusEl.textContent = 'Save failed: ' + (err.message || 'unknown error');
       }
+    }
+
+    document.getElementById('projectForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      // A brand-new project is never published directly on creation — it's
+      // always saved as a draft first (the "Publish" button only appears
+      // once the project already exists, via refreshButtons()).
+      doSave(editing ? 'Published' : 'Draft');
     });
+
+    document.getElementById('saveDraftBtn').addEventListener('click', () => doSave('Draft'));
   </script>
 </body>
 </html>

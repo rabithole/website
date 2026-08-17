@@ -43,7 +43,7 @@
   // ---------- Products ----------
   async function getProducts() {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/products');
+      const r = await fetch(API_BASE + '/api/products', { headers: authHeaders() });
       return r.json();
     }
     return lsGet(PRODUCT_KEY);
@@ -51,7 +51,7 @@
 
   async function getProduct(id) {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/products/' + encodeURIComponent(id));
+      const r = await fetch(API_BASE + '/api/products/' + encodeURIComponent(id), { headers: authHeaders() });
       if (!r.ok) return null;
       return r.json();
     }
@@ -220,7 +220,7 @@
   // ---------- RC Projects ----------
   async function getProjects() {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/projects');
+      const r = await fetch(API_BASE + '/api/projects', { headers: authHeaders() });
       return r.json();
     }
     return lsGet(PROJECT_KEY);
@@ -228,7 +228,7 @@
 
   async function getProject(id) {
     if (await probeApi()) {
-      const r = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(id));
+      const r = await fetch(API_BASE + '/api/projects/' + encodeURIComponent(id), { headers: authHeaders() });
       if (!r.ok) return null;
       return r.json();
     }

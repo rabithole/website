@@ -109,6 +109,7 @@
     .char-count {
       text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;
     }
+    .char-count.ok { color: #5ddea0; }
 
     .post-image-upload {
       width: 180px; aspect-ratio: 16/10; border: 2px dashed var(--border); border-radius: 10px;
@@ -254,6 +255,13 @@
           <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB.</div>
           <div id="postImageStatus" class="hint"></div>
           <input type="hidden" id="image" name="image" value="">
+        </div>
+
+        <div class="form-group" id="imageDescriptionGroup" style="display:none;">
+          <label for="imageDescription">Featured Image Description</label>
+          <textarea id="imageDescription" name="imageDescription" placeholder="Describe what's shown in the photo — what it depicts, why it's here, what to notice…" style="min-height:140px;" spellcheck="true"></textarea>
+          <div class="hint">Required once you've added a featured image — at least 500 characters.</div>
+          <div class="char-count"><span id="imageDescriptionCount">0</span>/500 minimum</div>
         </div>
 
         <div class="form-group">
@@ -411,6 +419,8 @@ Tips:
         document.getElementById('titleCount').textContent = editingPost.title.length;
         await loadCategoriesPromise;
         if (editingPost.category) categorySelect.value = editingPost.category;
+        imageDescriptionField.value = editingPost.imageDescription || '';
+        updateImageDescriptionCount();
         if (editingPost.image) {
           imageField.value = editingPost.image;
           postImagePreview.src = editingPost.image;
@@ -418,6 +428,7 @@ Tips:
           postImagePlaceholder.style.display = 'none';
           postImageRemoveBtn.style.display = 'inline-block';
         }
+        updateImageDescriptionVisibility();
       }
     })();
 
@@ -438,6 +449,23 @@ Tips:
 
     postImageUpload.addEventListener('click', () => postImageFileInput.click());
 
+    // Featured Image Description is only required (and only shown) once a featured image is attached.
+    const imageDescriptionGroup = document.getElementById('imageDescriptionGroup');
+    const imageDescriptionField = document.getElementById('imageDescription');
+    const imageDescriptionCount = document.getElementById('imageDescriptionCount');
+
+    function updateImageDescriptionVisibility() {
+      imageDescriptionGroup.style.display = imageField.value ? 'block' : 'none';
+    }
+
+    function updateImageDescriptionCount() {
+      const len = imageDescriptionField.value.trim().length;
+      imageDescriptionCount.textContent = len;
+      imageDescriptionCount.parentElement.classList.toggle('ok', len >= 500);
+    }
+
+    imageDescriptionField.addEventListener('input', updateImageDescriptionCount);
+
     function clearPostImage() {
       postImageFileInput.value = '';
       postImagePreview.src = '';
@@ -445,6 +473,7 @@ Tips:
       postImagePlaceholder.style.display = 'block';
       postImageRemoveBtn.style.display = 'none';
       imageField.value = '';
+      updateImageDescriptionVisibility();
     }
 
     // Removing an image on an already-published post saves immediately —
@@ -502,6 +531,7 @@ Tips:
         postImagePlaceholder.style.display = 'none';
         postImageRemoveBtn.style.display = 'inline-block';
         postImageStatus.textContent = 'Uploaded.';
+        updateImageDescriptionVisibility();
       } catch (err) {
         postImageStatus.textContent = 'Upload failed: ' + (err.message || 'unknown error');
         postImageFileInput.value = '';
@@ -526,8 +556,20 @@ Tips:
       const submitBtn = document.getElementById('submitBtn');
       const isPublished = editingPost && editingPost.status === 'Published';
       badge.classList.toggle('show', !!editingPost && !isPublished);
-      saveDraftBtn.textContent = isPublished ? 'Unpublish' : (editingPost ? 'Save Draft' : 'Save as Draft');
-      submitBtn.textContent = isPublished ? 'Save Changes' : (editingPost ? 'Publish' : 'Publish Post');
+      if (!editingPost) {
+        // A brand-new post is always saved as a draft first — publishing is a
+        // separate, explicit step you take once it exists.
+        saveDraftBtn.textContent = 'Save as Draft';
+        saveDraftBtn.classList.add('btn-primary');
+        saveDraftBtn.classList.remove('btn-secondary');
+        submitBtn.style.display = 'none';
+        return;
+      }
+      submitBtn.style.display = '';
+      saveDraftBtn.classList.remove('btn-primary');
+      saveDraftBtn.classList.add('btn-secondary');
+      saveDraftBtn.textContent = isPublished ? 'Unpublish' : 'Save Draft';
+      submitBtn.textContent = isPublished ? 'Save Changes' : 'Publish';
     }
 
     async function doSave(status) {
@@ -550,8 +592,15 @@ Tips:
         return;
       }
 
-      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const image = imageField.value || null;
+      const imageDescription = imageDescriptionField.value.trim();
+      if (image && imageDescription.length < 500) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `Featured image description must be at least 500 characters (currently ${imageDescription.length}).`;
+        return;
+      }
+
+      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
       const category = categorySelect.value || null;
       const now = new Date();
       const wasNew = !editingPost;
@@ -562,6 +611,7 @@ Tips:
         tags,
         content,
         image,
+        imageDescription: image ? imageDescription : '',
         category,
         status,
         date: editingPost ? editingPost.date : now.toISOString().slice(0, 10),
@@ -616,7 +666,10 @@ Tips:
 
     document.getElementById('postForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      doSave('Published');
+      // A brand-new post is never published directly on creation — it's
+      // always saved as a draft first (the "Publish" button only appears
+      // once the post already exists, via refreshButtons()).
+      doSave(editingPost ? 'Published' : 'Draft');
     });
 
     document.getElementById('saveDraftBtn').addEventListener('click', () => doSave('Draft'));
