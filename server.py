@@ -260,6 +260,22 @@ def image_description_error(data):
     return None
 
 
+def gallery_image_description_error(images):
+    """None unless one of the (optional) per-photo gallery captions exceeds the cap."""
+    if not isinstance(images, list):
+        return None
+    for item in images:
+        if not isinstance(item, dict):
+            continue
+        text = (item.get("description") or "").strip()
+        if len(text) > MAX_IMAGE_DESCRIPTION_LENGTH:
+            return (
+                f"Each gallery photo description must be {MAX_IMAGE_DESCRIPTION_LENGTH} "
+                f"characters or fewer (currently {len(text)})."
+            )
+    return None
+
+
 def row_to_product(row):
     return {
         "id": row["id"],
@@ -1125,7 +1141,7 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/projects":
             if not self._require_auth():
                 return
-            img_err = image_description_error(data)
+            img_err = image_description_error(data) or gallery_image_description_error(data.get("images"))
             if img_err:
                 return self._send_json({"error": img_err}, 400)
             pid = data.get("id") or f"project-{int(time.time() * 1000)}"
@@ -1394,6 +1410,7 @@ class Handler(SimpleHTTPRequestHandler):
             if isinstance(tags, list):
                 tags = json.dumps(tags)
             images = data.get("images", [])
+            img_err = image_description_error(data) or gallery_image_description_error(images)
             if isinstance(images, list):
                 images = json.dumps(images)
             conn = get_db()
@@ -1403,7 +1420,6 @@ class Handler(SimpleHTTPRequestHandler):
             if not existing:
                 conn.close()
                 return self._send_json({"error": "Not found"}, 404)
-            img_err = image_description_error(data)
             if img_err:
                 conn.close()
                 return self._send_json({"error": img_err}, 400)

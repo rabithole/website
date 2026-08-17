@@ -235,32 +235,35 @@
       });
     }
 
-    function buildGalleryHtml(images, title) {
-      if (images.length === 0) return '<div class="img-placeholder">No Image</div>';
-      const slides = images.map(src => `<img class="carousel-slide" src="${escapeHtml(src)}" alt="${escapeHtml(title)}">`).join('');
-      const controls = images.length > 1 ? `
+    function buildGalleryHtml(slides, title) {
+      if (slides.length === 0) return '<div class="img-placeholder">No Image</div>';
+      const imgs = slides.map(s => `<img class="carousel-slide" src="${escapeHtml(s.src)}" alt="${escapeHtml(title)}">`).join('');
+      const controls = slides.length > 1 ? `
           <button type="button" class="carousel-arrow carousel-prev" id="carouselPrev" aria-label="Previous photo">‹</button>
           <button type="button" class="carousel-arrow carousel-next" id="carouselNext" aria-label="Next photo">›</button>
-          <div class="carousel-dots">${images.map((_, i) => `<button type="button" class="carousel-dot${i === 0 ? ' active' : ''}" data-index="${i}" aria-label="Photo ${i + 1}"></button>`).join('')}</div>
+          <div class="carousel-dots">${slides.map((_, i) => `<button type="button" class="carousel-dot${i === 0 ? ' active' : ''}" data-index="${i}" aria-label="Photo ${i + 1}"></button>`).join('')}</div>
         ` : '';
       return `
         <div class="carousel" id="projectCarousel">
-          <div class="carousel-track" id="carouselTrack">${slides}</div>
+          <div class="carousel-track" id="carouselTrack">${imgs}</div>
           ${controls}
         </div>
+        <p class="image-description" id="carouselCaption" style="display:none;"></p>
       `;
     }
 
-    function initCarousel(count) {
+    function initCarousel(slides) {
+      const count = slides.length;
       if (count === 0) return;
       let index = 0;
       const carousel = document.getElementById('projectCarousel');
       const track = document.getElementById('carouselTrack');
-      const slides = document.querySelectorAll('.carousel-slide');
+      const slideEls = document.querySelectorAll('.carousel-slide');
       const dots = document.querySelectorAll('.carousel-dot');
+      const caption = document.getElementById('carouselCaption');
 
       function applyHeight() {
-        const img = slides[index];
+        const img = slideEls[index];
         const fit = () => {
           if (!img.naturalWidth) return;
           const ratio = img.naturalHeight / img.naturalWidth;
@@ -274,10 +277,18 @@
         else img.addEventListener('load', fit, { once: true });
       }
 
+      function updateCaption() {
+        if (!caption) return;
+        const desc = (slides[index] && slides[index].description) || '';
+        caption.textContent = desc;
+        caption.style.display = desc ? 'block' : 'none';
+      }
+
       function update() {
         track.style.transform = `translateX(-${index * 100}%)`;
         dots.forEach((d, i) => d.classList.toggle('active', i === index));
         applyHeight();
+        updateCaption();
       }
 
       if (count > 1) {
@@ -299,6 +310,7 @@
 
       window.addEventListener('resize', applyHeight);
       applyHeight();
+      updateCaption();
     }
 
     function showProject(id) {
@@ -312,18 +324,32 @@
 
       const tagsHtml = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
       const body = p.content && p.content.trim() ? p.content : p.description;
-      const images = [...new Set([p.image, ...(p.images || [])].filter(Boolean))];
+
+      // Combine the cover image with the gallery, each carrying its own
+      // optional caption. Older saved projects may have plain string
+      // entries in "images" — normalize those to captionless slides.
+      const rawSlides = [];
+      if (p.image) rawSlides.push({ src: p.image, description: p.imageDescription || '' });
+      (p.images || []).forEach(img => {
+        if (typeof img === 'string') rawSlides.push({ src: img, description: '' });
+        else if (img && img.src) rawSlides.push({ src: img.src, description: img.description || '' });
+      });
+      const seenSrc = new Set();
+      const slides = rawSlides.filter(s => {
+        if (seenSrc.has(s.src)) return false;
+        seenSrc.add(s.src);
+        return true;
+      });
 
       document.getElementById('articleContent').innerHTML = `
-        ${buildGalleryHtml(images, p.title)}
-        ${p.image && p.imageDescription ? `<p class="image-description">${escapeHtml(p.imageDescription)}</p>` : ''}
+        ${buildGalleryHtml(slides, p.title)}
         <div class="article-body-wrap">
           <h1>${escapeHtml(p.title)}</h1>
           <div class="article-tags">${tagsHtml}</div>
           <div class="article-content">${escapeHtml(body)}</div>
         </div>
       `;
-      initCarousel(images.length);
+      initCarousel(slides);
     }
 
     function showList() {

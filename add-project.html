@@ -144,6 +144,15 @@
     .gallery-add-tile:hover { border-color: var(--cyan); }
     .gallery-add-tile.uploading { opacity: 0.6; pointer-events: none; }
 
+    .gallery-caption-list { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 0.9rem; }
+    .gallery-caption-item { display: flex; gap: 0.8rem; align-items: flex-start; }
+    .gallery-caption-item img {
+      width: 60px; height: 60px; border-radius: 8px; object-fit: cover;
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .gallery-caption-field { flex: 1; min-width: 0; }
+    .gallery-caption-field textarea { min-height: 70px; }
+
     .actions {
       display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.6rem; align-items: center;
     }
@@ -263,6 +272,7 @@
           <input type="file" id="galleryFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
           <div class="hint">PNG, JPG, WEBP, or GIF — up to 8MB each.</div>
           <div id="galleryStatus" class="hint"></div>
+          <div class="gallery-caption-list" id="galleryCaptionList"></div>
         </div>
 
         <div class="actions">
@@ -280,6 +290,12 @@
   <script>
     if (sessionStorage.getItem('rabithole_auth') !== '1') {
       window.location.href = 'login.html';
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
     }
 
     // Image selection — upload your own
@@ -380,16 +396,18 @@
       }
     });
 
-    // Additional photos — gallery shown on the project's own page
+    // Additional photos — gallery shown on the project's own page.
+    // Each photo is { src, description } — description is optional, up to 500 characters.
     let galleryImages = [];
     const galleryGrid = document.getElementById('galleryGrid');
     const galleryFileInput = document.getElementById('galleryFileInput');
     const galleryStatus = document.getElementById('galleryStatus');
+    const galleryCaptionList = document.getElementById('galleryCaptionList');
 
     function renderGallery() {
-      galleryGrid.innerHTML = galleryImages.map((src, i) => `
+      galleryGrid.innerHTML = galleryImages.map((img, i) => `
         <div class="gallery-item">
-          <img src="${src}">
+          <img src="${escapeHtml(img.src)}">
           <button type="button" class="gallery-remove-btn" data-index="${i}" title="Remove photo">✕</button>
         </div>
       `).join('') + '<div class="gallery-add-tile" id="galleryAddTile"><span>+ Add Photo</span></div>';
@@ -401,6 +419,30 @@
         });
       });
       document.getElementById('galleryAddTile').addEventListener('click', () => galleryFileInput.click());
+
+      renderGalleryCaptions();
+    }
+
+    function renderGalleryCaptions() {
+      galleryCaptionList.innerHTML = galleryImages.map((img, i) => `
+        <div class="gallery-caption-item">
+          <img src="${escapeHtml(img.src)}" alt="">
+          <div class="gallery-caption-field">
+            <textarea data-index="${i}" maxlength="500" placeholder="Optional description for this photo…" spellcheck="true">${escapeHtml(img.description || '')}</textarea>
+            <div class="char-count"><span class="gallery-caption-count">${(img.description || '').length}</span>/500</div>
+          </div>
+        </div>
+      `).join('');
+
+      galleryCaptionList.querySelectorAll('textarea').forEach(ta => {
+        ta.addEventListener('input', () => {
+          const i = parseInt(ta.dataset.index, 10);
+          galleryImages[i].description = ta.value;
+          const countWrap = ta.parentElement.querySelector('.char-count');
+          countWrap.querySelector('.gallery-caption-count').textContent = ta.value.length;
+          countWrap.classList.toggle('warn', ta.value.length >= 450);
+        });
+      });
     }
 
     // Removing a gallery photo on an already-published project saves immediately —
@@ -449,7 +491,7 @@
       if (addTile) addTile.classList.add('uploading');
       try {
         const result = await RabitholeDB.uploadImage(file);
-        galleryImages.push(result.path);
+        galleryImages.push({ src: result.path, description: '' });
         renderGallery();
         await loadEditPromise;
         if (editing && window.RabitholeDB) {
@@ -521,7 +563,10 @@
           clearImageBtn.style.display = 'inline-block';
         }
         updateImageDescriptionVisibility();
-        galleryImages = (editing.images || []).slice();
+        // Normalize legacy entries (plain src strings) saved before per-photo captions existed.
+        galleryImages = (editing.images || []).map(img =>
+          typeof img === 'string' ? { src: img, description: '' } : { src: img.src, description: img.description || '' }
+        );
         renderGallery();
       }
       refreshButtons();
@@ -546,6 +591,12 @@
       if (imageDescription.length > 500) {
         statusEl.className = 'status error';
         statusEl.textContent = `Cover image description must be 500 characters or fewer (currently ${imageDescription.length}).`;
+        return;
+      }
+      const overLongCaption = galleryImages.find(img => (img.description || '').length > 500);
+      if (overLongCaption) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `A gallery photo description must be 500 characters or fewer (currently ${overLongCaption.description.length}).`;
         return;
       }
       if (!window.RabitholeDB) {
