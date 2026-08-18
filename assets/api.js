@@ -128,6 +128,17 @@
     return true;
   }
 
+  // Public — signal interest in a Sold Out product. Not available in the
+  // localStorage fallback mode since there's no shared server to count against.
+  async function requestBackorder(id) {
+    const r = await fetch(API_BASE + '/api/products/' + encodeURIComponent(id) + '/backorder-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Request failed');
+    return r.json();
+  }
+
   // ---------- Posts ----------
   async function getPosts() {
     if (await probeApi()) {
@@ -472,6 +483,7 @@
     uploadImage,
     uploadRequestPhoto,
     deleteProduct,
+    requestBackorder,
     getPosts,
     getPost,
     savePost,

@@ -117,6 +117,7 @@
     .status-badge.Available { background: rgba(0,180,100,0.85); color: #fff; }
     .status-badge.Made\ to\ Order { background: rgba(0,150,220,0.85); color: #fff; }
     .status-badge.Sold\ Out { background: rgba(120,120,120,0.85); color: #fff; }
+    .status-badge.Backordered { background: rgba(255,180,0,0.9); color: #1a1200; }
 
     .product-body { padding: 1.25rem; }
     .product-cat {
@@ -185,6 +186,15 @@
     .detail-status.Available { background: rgba(0,180,100,0.15); color: #5ddea0; border: 1px solid rgba(0,180,100,0.35); }
     .detail-status.Made\ to\ Order { background: rgba(0,150,220,0.15); color: #6ec8f0; border: 1px solid rgba(0,150,220,0.35); }
     .detail-status.Sold\ Out { background: rgba(120,120,120,0.15); color: #aaa; border: 1px solid rgba(120,120,120,0.35); }
+    .detail-status.Backordered { background: rgba(255,180,0,0.15); color: #ffcf5c; border: 1px solid rgba(255,180,0,0.4); }
+
+    .backorder-btn {
+      background: rgba(255,180,0,0.12); border: 1px solid rgba(255,180,0,0.4); color: #ffcf5c;
+      padding: 0.75rem 1.2rem; border-radius: 10px; font-weight: 600; font-size: 0.92rem;
+      cursor: pointer; font-family: inherit; width: 100%;
+    }
+    .backorder-btn:hover { background: rgba(255,180,0,0.2); }
+    .backorder-btn:disabled { opacity: 0.6; cursor: default; }
 
     .detail-desc {
       color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin-bottom: 1.6rem;
@@ -193,6 +203,10 @@
 
     .made-to-order-note {
       background: rgba(0,150,220,0.1); border: 1px solid rgba(0,150,220,0.3); color: #6ec8f0;
+      border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.88rem; margin-bottom: 1.2rem;
+    }
+    .backordered-note {
+      background: rgba(255,180,0,0.1); border: 1px solid rgba(255,180,0,0.3); color: #ffcf5c;
       border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.88rem; margin-bottom: 1.2rem;
     }
 
@@ -400,7 +414,7 @@
         <div class="product-card" data-id="${p.id}">
           <div class="product-img">
             ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">` : '<div class="img-placeholder">No Image</div>'}
-            <span class="status-badge ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+            <span class="status-badge ${escapeHtml(p.displayStatus || p.status)}">${escapeHtml(p.displayStatus || p.status)}</span>
           </div>
           <div class="product-body">
             <div class="product-cat">${escapeHtml(p.category)}</div>
@@ -436,11 +450,14 @@
           <div class="detail-price">${formatPrice(p.price)}</div>
           <div class="detail-meta">
             <span class="detail-tag">${escapeHtml(p.category)}</span>
-            <span class="detail-status ${escapeHtml(p.status)}">${escapeHtml(p.status)}</span>
+            <span class="detail-status ${escapeHtml(p.displayStatus || p.status)}">${escapeHtml(p.displayStatus || p.status)}</span>
           </div>
           <div class="detail-desc">${escapeHtml(p.description)}</div>
           ${p.status === 'Made to Order' ? `
             <div class="made-to-order-note">⏳ Made to order — please allow 7–14 days before this ships.</div>
+          ` : ''}
+          ${p.displayStatus === 'Backordered' ? `
+            <div class="backordered-note">📦 Backordered — enough people want this that a restock is worth planning. Request it below to be counted.</div>
           ` : ''}
           <div class="actions-bar">
             <a href="mailto:rabithole.sales@gmail.com?subject=Inquiry:%20${encodeURIComponent(p.name)}" class="btn btn-secondary" id="inquireBtn">Questions? Email us</a>
@@ -456,6 +473,7 @@
               <button type="button" class="qty-btn-lg" id="qtyIncBtn">+</button>
             </div>
             <button class="btn btn-primary" id="addToCartBtn">Add to Cart</button>
+            <button type="button" class="backorder-btn" id="backorderBtn" style="display:none;">🔔 Notify Me — I Want This</button>
             <div id="checkoutMsg"></div>
           </div>
         </div>
@@ -474,9 +492,26 @@
       el.textContent = text;
     }
 
+    const BACKORDER_REQUESTED_KEY = 'rabithole_backorder_requested';
+
+    function hasRequestedBackorder(productId) {
+      try {
+        return JSON.parse(localStorage.getItem(BACKORDER_REQUESTED_KEY) || '[]').includes(productId);
+      } catch { return false; }
+    }
+
+    function markBackorderRequested(productId) {
+      try {
+        const list = JSON.parse(localStorage.getItem(BACKORDER_REQUESTED_KEY) || '[]');
+        if (!list.includes(productId)) list.push(productId);
+        localStorage.setItem(BACKORDER_REQUESTED_KEY, JSON.stringify(list));
+      } catch { /* localStorage unavailable — button just won't remember across reloads */ }
+    }
+
     async function renderCheckout(product) {
       const qtySelector = document.getElementById('qtySelector');
       const addBtn = document.getElementById('addToCartBtn');
+      const backorderBtn = document.getElementById('backorderBtn');
       if (!addBtn) return;
 
       if (window.RabitholeDB) {
@@ -496,7 +531,32 @@
       if (product.status === 'Sold Out') {
         qtySelector.style.display = 'none';
         addBtn.style.display = 'none';
-        showCheckoutMsg('info', 'This item is currently sold out.');
+        const isBackordered = product.displayStatus === 'Backordered';
+        showCheckoutMsg('info', isBackordered ? 'Backordered — restocking due to demand.' : 'This item is currently sold out.');
+
+        if (backorderBtn && window.RabitholeDB) {
+          backorderBtn.style.display = 'block';
+          if (hasRequestedBackorder(product.id)) {
+            backorderBtn.disabled = true;
+            backorderBtn.textContent = '✓ We\'ve got your request';
+          } else {
+            backorderBtn.disabled = false;
+            backorderBtn.textContent = '🔔 Notify Me — I Want This';
+            backorderBtn.onclick = async () => {
+              backorderBtn.disabled = true;
+              backorderBtn.textContent = 'Requesting…';
+              try {
+                await RabitholeDB.requestBackorder(product.id);
+                markBackorderRequested(product.id);
+                backorderBtn.textContent = '✓ We\'ve got your request';
+              } catch (err) {
+                backorderBtn.disabled = false;
+                backorderBtn.textContent = '🔔 Notify Me — I Want This';
+                showCheckoutMsg('error', 'Could not send request: ' + (err.message || 'unknown error'));
+              }
+            };
+          }
+        }
         return;
       }
       if (!window.RabitholeCart) {

@@ -12,6 +12,10 @@ API:
     GET  /api/me                 (Authorization: Bearer <token>)
     GET/POST /api/products
     GET/PUT/DELETE /api/products/<id>
+    POST /api/products/<id>/backorder-request  public — record a "want this" click on a Sold
+                                                Out product; once a product crosses the request
+                                                threshold it displays as "Backordered" instead
+                                                (stored status stays "Sold Out")
     GET/POST /api/posts
     GET/PUT/DELETE /api/posts/<id>
     GET  /api/blog-categories             public — list all blog categories
@@ -81,6 +85,10 @@ SESSION_DAYS = 7
 FULFILLMENT_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
 REQUEST_STATUSES = {"New", "In Progress", "Completed", "Declined"}
 MAX_IMAGE_DESCRIPTION_LENGTH = 500
+# Once a Sold Out product has been requested this many times, it displays as
+# "Backordered" instead — a demand signal layered on top of the stored status,
+# which itself stays "Sold Out" (set manually or automatically at 0 stock).
+BACKORDER_REQUEST_THRESHOLD = 3
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 UPLOAD_CONTENT_TYPES = {
     "image/png": "png",
@@ -277,12 +285,24 @@ def gallery_image_description_error(images):
 
 
 def row_to_product(row):
+    status = row["status"]
+    backorder_requests = row["backorder_requests"] if "backorder_requests" in row.keys() else 0
+    # displayStatus is what customers see: identical to status, except a Sold
+    # Out item with enough backorder requests reads as "Backordered" instead —
+    # a demand signal only. The stored status is never changed by this.
+    display_status = (
+        "Backordered"
+        if status == "Sold Out" and backorder_requests >= BACKORDER_REQUEST_THRESHOLD
+        else status
+    )
     return {
         "id": row["id"],
         "name": row["name"],
         "price": row["price"],
         "category": row["category"],
-        "status": row["status"],
+        "status": status,
+        "displayStatus": display_status,
+        "backorderRequests": backorder_requests,
         "published": row["published"] if "published" in row.keys() else "Published",
         "description": row["description"],
         "image": row["image"],
@@ -1030,6 +1050,29 @@ class Handler(SimpleHTTPRequestHandler):
                 conn.close()
             return self._send_json({"ok": True})
 
+        # --- Backorder request (public — anyone can signal interest in a
+        # Sold Out product; this never changes the stored status itself) ---
+        if path.startswith("/api/products/") and path.endswith("/backorder-request"):
+            pid = path[len("/api/products/"):-len("/backorder-request")]
+            conn = get_db()
+            row = conn.execute("SELECT * FROM products WHERE id = ?", (pid,)).fetchone()
+            if not row:
+                conn.close()
+                return self._send_json({"error": "Not found"}, 404)
+            if row["status"] != "Sold Out":
+                conn.close()
+                return self._send_json(
+                    {"error": "This item isn't sold out — no need to request it."}, 400
+                )
+            conn.execute(
+                "UPDATE products SET backorder_requests = backorder_requests + 1 WHERE id = ?",
+                (pid,),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM products WHERE id = ?", (pid,)).fetchone()
+            conn.close()
+            return self._send_json(row_to_product(row))
+
         # --- Products (auth required for create) ---
         if path == "/api/products":
             if not self._require_auth():
@@ -1334,14 +1377,22 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": img_err}, 400)
             stock_quantity = data.get("stockQuantity")
             stock_quantity = int(stock_quantity) if stock_quantity not in (None, "") else None
+            new_status = data.get("status", "Available")
+            # Restocking clears past backorder interest so a future Sold Out
+            # period starts counting from zero again.
+            backorder_requests = (
+                0 if existing["status"] == "Sold Out" and new_status != "Sold Out"
+                else existing["backorder_requests"]
+            )
             conn.execute(
                 """UPDATE products SET name=?, price=?, category=?, status=?, published=?,
-                   description=?, image=?, image_description=?, shipping_info=?, stock_quantity=?, updated_at=? WHERE id=?""",
+                   description=?, image=?, image_description=?, shipping_info=?, stock_quantity=?,
+                   backorder_requests=?, updated_at=? WHERE id=?""",
                 (
                     data["name"],
                     float(data["price"]),
                     data["category"],
-                    data.get("status", "Available"),
+                    new_status,
                     # Only an explicit edit can change publish state — if the
                     # caller doesn't send it, leave it exactly as it was.
                     data.get("published", existing["published"]),
@@ -1350,6 +1401,7 @@ class Handler(SimpleHTTPRequestHandler):
                     data.get("imageDescription") or None,
                     data.get("shippingInfo") or None,
                     stock_quantity,
+                    backorder_requests,
                     now,
                     pid,
                 ),
@@ -1648,6 +1700,8 @@ def main():
         conn.execute("ALTER TABLE products ADD COLUMN published TEXT NOT NULL DEFAULT 'Published'")
     if "image_description" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN image_description TEXT")
+    if "backorder_requests" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN backorder_requests INTEGER NOT NULL DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
