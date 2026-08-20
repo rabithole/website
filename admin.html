@@ -172,22 +172,12 @@
     .qse-status.error { color: #ff8a8a; }
     .qse-disabled .qse-rows, .qse-disabled .qse-toggle:not(:has(#qseEnabledToggle)) { opacity: 0.5; pointer-events: none; }
 
-    .quick-stats-preview { margin-top: 2rem; }
-    .quick-stats-preview h3 { font-size: 0.95rem; margin-bottom: 0.9rem; }
-    .qsp-row {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 1.5rem;
-    }
-    .qsp-stat { text-align: center; }
-    .qsp-value { font-family: 'Orbitron', sans-serif; font-size: 1.55rem; font-weight: 700; color: var(--orange); }
-    .qsp-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .quick-stats-editor { margin-top: 2rem; margin-bottom: 0; }
 
     @media (max-width: 640px) {
       .grid, .stats { grid-template-columns: 1fr; }
       .store-status { flex-direction: column; align-items: stretch; }
       .qse-row { grid-template-columns: 1fr; }
-      .qsp-row { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -222,31 +212,6 @@
         </div>
       </div>
       <button id="storeStatusToggle" class="btn-danger-outline">Stop All Sales</button>
-    </div>
-
-    <div class="quick-stats-editor" id="quickStatsEditor">
-      <div class="qse-header">
-        <div>
-          <h2>Homepage Quick Stats</h2>
-          <p>Controls the stat row at the top of your homepage.</p>
-        </div>
-        <div class="qse-toggles">
-          <label class="qse-toggle">
-            <input type="checkbox" id="qseEnabledToggle" checked>
-            Show this section on the homepage
-          </label>
-          <label class="qse-toggle">
-            <input type="checkbox" id="qseLiveToggle">
-            Use live counts for Parts Sold &amp; Projects
-          </label>
-        </div>
-      </div>
-      <div class="qse-rows" id="qseRows"></div>
-      <div class="qse-actions">
-        <button class="btn btn-primary" id="qseSaveBtn">Save Changes</button>
-        <button class="btn btn-secondary" id="qseResetBtn">Reset to Original</button>
-        <span id="qseStatus" class="qse-status"></span>
-      </div>
     </div>
 
     <div class="stats" id="stats">
@@ -314,25 +279,28 @@
       </ul>
     </div>
 
-    <div class="quick-stats-preview">
-      <h3>Homepage Quick Stats (live preview)</h3>
-      <div class="qsp-row" id="qspRow">
-        <div class="qsp-stat">
-          <div class="qsp-value">50+</div>
-          <div class="qsp-label">Parts Sold</div>
+    <div class="quick-stats-editor" id="quickStatsEditor">
+      <div class="qse-header">
+        <div>
+          <h2>Homepage Quick Stats</h2>
+          <p>Controls the stat row at the top of your homepage.</p>
         </div>
-        <div class="qsp-stat">
-          <div class="qsp-value">WSU</div>
-          <div class="qsp-label">MechE Student</div>
+        <div class="qse-toggles">
+          <label class="qse-toggle">
+            <input type="checkbox" id="qseEnabledToggle" checked>
+            Show this section on the homepage
+          </label>
+          <label class="qse-toggle">
+            <input type="checkbox" id="qseLiveToggle">
+            Use live counts for Parts Sold &amp; Projects
+          </label>
         </div>
-        <div class="qsp-stat">
-          <div class="qsp-value">12+</div>
-          <div class="qsp-label">RC Projects</div>
-        </div>
-        <div class="qsp-stat">
-          <div class="qsp-value">∞</div>
-          <div class="qsp-label">Rabbit Hole Depth</div>
-        </div>
+      </div>
+      <div class="qse-rows" id="qseRows"></div>
+      <div class="qse-actions">
+        <button class="btn btn-primary" id="qseSaveBtn">Save Changes</button>
+        <button class="btn btn-secondary" id="qseResetBtn">Reset to Original</button>
+        <span id="qseStatus" class="qse-status"></span>
       </div>
     </div>
   </div>
@@ -564,36 +532,6 @@
         statusEl.textContent = 'Reset failed: ' + err.message;
       }
     });
-
-    // Homepage Quick Stats live preview
-    (async function renderQuickStatsPreview() {
-      const row = document.getElementById('qspRow');
-      if (!row || !window.RabitholeDB) return;
-      try {
-        const { stats, enabled } = await RabitholeDB.getQuickStats();
-        const wrap = row.closest('.quick-stats-preview');
-        if (enabled === false) {
-          if (wrap) wrap.style.display = 'none';
-          return;
-        }
-        if (!Array.isArray(stats) || stats.length === 0) return;
-        row.innerHTML = '';
-        stats.forEach(s => {
-          const stat = document.createElement('div');
-          stat.className = 'qsp-stat';
-          const value = document.createElement('div');
-          value.className = 'qsp-value';
-          value.textContent = s.value;
-          const label = document.createElement('div');
-          label.className = 'qsp-label';
-          label.textContent = s.label;
-          stat.append(value, label);
-          row.appendChild(stat);
-        });
-      } catch (err) {
-        // Leave the static fallback markup in place.
-      }
-    })();
   </script>
 </body>
 </html>
