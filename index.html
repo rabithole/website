@@ -493,25 +493,8 @@ Several decades of hands-on diagnostics as a mechanic have given me experience w
         <span class="icon">🤖</span>
         <p><strong>Heads up:</strong> the posts below are AI-generated placeholders standing in for real content — my own essays are coming soon.</p>
       </div>
-      <div class="blog-grid">
-        <div class="blog-card">
-          <div class="blog-date">July 2026</div>
-          <h3>Why I switched to PA6-CF for suspension arms</h3>
-          <p>Layer adhesion, stiffness-to-weight, and what failed on the first three print iterations.</p>
-          <a href="blog.html" class="blog-link">Read more →</a>
-        </div>
-        <div class="blog-card">
-          <div class="blog-date">June 2026</div>
-          <h3>Topology optimization for RC A-arms (quick guide)</h3>
-          <p>How I set up load cases in Fusion and what I keep versus what the solver wants to delete.</p>
-          <a href="blog.html" class="blog-link">Read more →</a>
-        </div>
-        <div class="blog-card">
-          <div class="blog-date">May 2026</div>
-          <h3>From classroom FEA to track testing</h3>
-          <p>Translating a solid-mechanics assignment into a real part that survived a full race weekend.</p>
-          <a href="blog.html" class="blog-link">Read more →</a>
-        </div>
+      <div class="blog-grid" id="blogGrid">
+        <p style="color:var(--text-muted); grid-column:1/-1;">No posts yet. Check back soon.</p>
       </div>
     </div>
   </section>
@@ -820,6 +803,37 @@ Several decades of hands-on diagnostics as a mechanic have given me experience w
               ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
             </div>
           </div>
+        </a>
+      `).join('');
+    })();
+
+    function blogExcerpt(text, max = 145) {
+      const clean = (text || '').replace(/\n+/g, ' ').trim();
+      return clean.length > max ? clean.slice(0, max) + '…' : clean;
+    }
+
+    (async function renderBlog() {
+      const grid = document.getElementById('blogGrid');
+      if (!grid || !window.RabitholeDB) return;
+      let posts = [];
+      try {
+        posts = await RabitholeDB.getPosts();
+      } catch (err) {
+        return;
+      }
+      if (posts.length === 0) return;
+
+      posts = posts
+        .slice()
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, 3);
+
+      grid.innerHTML = posts.map(p => `
+        <a class="blog-card" href="blog.html#post=${encodeURIComponent(p.id)}" style="text-decoration:none; color:inherit; display:block;">
+          <div class="blog-date">${p.date ? new Date(p.date + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : ''}</div>
+          <h3>${escapeHtml(p.title)}</h3>
+          <p>${escapeHtml(blogExcerpt(p.content))}</p>
+          <span class="blog-link">Read more →</span>
         </a>
       `).join('');
     })();
