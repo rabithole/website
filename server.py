@@ -453,13 +453,11 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header(
-            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
-        )
-        self.send_header(
-            "Access-Control-Allow-Headers", "Content-Type, Authorization"
-        )
+        # No CORS headers: the frontend and this API are always same-origin
+        # (both served from www.rabithole.com), and same-origin requests are
+        # never subject to CORS in the first place. Omitting these headers
+        # means other websites' JS can no longer call this API at all —
+        # cross-origin reads get blocked by the browser by default.
         self.end_headers()
         self.wfile.write(body)
 
@@ -531,14 +529,10 @@ class Handler(SimpleHTTPRequestHandler):
         return user
 
     def do_OPTIONS(self):
+        # No CORS headers here either — see the comment in _send_json. A
+        # cross-origin preflight now gets a 204 with no Access-Control-Allow-*
+        # headers, which the browser treats as "not permitted."
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header(
-            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
-        )
-        self.send_header(
-            "Access-Control-Allow-Headers", "Content-Type, Authorization"
-        )
         self.end_headers()
 
     # ---------- GET ----------
